@@ -1,5 +1,7 @@
 # Host Unstuck
 
+<p align="center"><img src="docs/preview.png" alt="Host Unstuck" width="320"></p>
+
 **Un-sticks the "Host" screen of Project Zomboid (Build 42.21+) when the co-op server hangs while downloading Workshop mods, and (with ZombieBuddy) makes that download several times faster.**
 
 > Status: 2.0.0, experimental. The logic passed the offline simulations (`tools/build.sh`); the mod has **not yet been run in the game**. GitHub only; it goes to the Steam Workshop after a real hosting test.

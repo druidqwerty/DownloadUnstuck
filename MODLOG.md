@@ -72,8 +72,9 @@ tests/experiments (nothing sensitive), Steam only verified mods; releases are al
 | `test/sim_test.py` | done — 12 scenarios pass (loads HU_C too, PZAPI stub) |
 | `tools/build.sh` | done — jar, dist/HostUnstuck (42/ layout), SimTest, SelfTest, Lua sim |
 | README.md / README_RU.txt / LICENSE / docs/banner.png | done (2.0.0 experimental) |
-| GitHub repo druidqwerty/HostUnstuck | todo this session (code + pre-release zip) |
-| workshop.txt + workshop_russian.txt + preview 512×512, Steam upload | todo AFTER the in-game test (user rule) |
+| GitHub repo druidqwerty/HostUnstuck | done — commit 2b8b810, pre-release v2.0.0-rc1 (zip sha256 2e68d3fe…, verified anonymously) |
+| Steam staging `~/Zomboid/Workshop/HostUnstuck/` (workshop.txt EN 4592 B, workshop_russian.txt 6503 B of 7999, preview.png 512×512, Contents = dist) | drafted 02:10, "Live test" sections say TODO; **not uploaded** (user rule: Steam only after the in-game test) |
+| `docs/preview.png` (cover, source `workspace-modder/hostunstuck-preview/preview.html`, Chrome headless 2x + PIL) | done, README shows it |
 
 ### Status (2026-10-28 02:30)
 - `tools/build.sh` green: javac clean, SimTest ALL OK, SelfTest OK (class shadowing + hash gate with the game's
