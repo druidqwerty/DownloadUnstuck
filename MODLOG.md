@@ -59,6 +59,11 @@ Residual unknowns for the test: whether Steam starts normal-priority requests by
 - In-game checks below still apply; additionally in `coop-console.txt`: `push N` lines (Steam left requests waiting),
   `one item at a time from now on` (normal priority does not work here), and the final
   `all N items ready in S s, K re-requests, P pushes, D downloads, parallel xX at the end`.
+- GitHub: commit 727b364 pushed; pre-release v2.0.0-rc2 (zip `HostUnstuck_2.0.0-rc2.zip`, sha256 7afac16a…, now with
+  the empty `common/` that rc1's zip lacked), verified anonymously. Steam staging (`~/Zomboid/Workshop/HostUnstuck`:
+  both descriptions + Contents = dist) refreshed, **not uploaded**. No Boosty post (GitHub-only pre-release).
+- Next: the user's in-game hosting test (see checks); on success release the same zip as 2.0.0, upload to Steam
+  (public, verify visibility), add Host Unstuck to the SmoothRide/ZombieSync "My mods" lists, Boosty post text.
 
 ## 2.0.0 (2026-10-28 02:30): Java part written, offline tests green, NOT run in the game
 
