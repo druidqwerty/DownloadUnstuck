@@ -4,7 +4,7 @@
 
 **Un-sticks the "Host" screen of Project Zomboid (Build 42.21+) when the co-op server hangs while downloading Workshop mods, and (with ZombieBuddy) makes that download several times faster.**
 
-> Status: 2.0.0-rc2, experimental. The logic passed the offline simulations (`tools/build.sh`); the mod has **not yet been run in the game**. GitHub only; it goes to the Steam Workshop after a real hosting test.
+> Status: 2.0.0, experimental. The logic passed the offline simulations (`tools/build.sh`); the mod has **not yet been run in a real hosting session**. Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3829163351 . If something goes wrong, turn off "Parallel Workshop downloads" in the options and open an issue with `Zomboid/console.txt` and `coop-console.txt`.
 
 When you host a game from the main menu with a big mod list, the server process first downloads every Workshop item into its own folder. With a few hundred mods this takes a long time, and sometimes it simply stops: the status stays on "Downloaded 259 of 308" (in Russian it shows as "????????? 259 ?? 308") forever. The only cure is to press Stop and then Start again; the new server process re-checks the installed items in a few seconds and continues from the stuck one.
 
@@ -37,17 +37,19 @@ How much faster the download gets is up to Steam: the game-server download path 
 `tools/build.sh` (bash; needs JDK 25 and the game) compiles the jar, assembles `dist/HostUnstuck` (the mod folder) and runs three offline tests: `SimTest` (the server loop against a fake Steam: parallel vs sequential, a serialised queue, a hung item, a Steam that starts only high-priority requests, a dead item, updates, refused downloads), `SelfTest` (the game's own JVM started like the Host screen starts the server; checks that the mod's class shadows the game's and that the hash gate passes) and `test/sim_test.py` (the Lua watchdog in lupa, 15 scenarios).
 
 ## Changes
-- **2.0.0-rc2** (2026-10-29, not yet run in the game): ZombieBuddy is really optional now (rc1 listed it under `require=` in `mod.info`, so the game demanded it even for the Lua watchdog; ZombieBuddy itself loads the jar from `javaJarFile` alone). The watchdog no longer counts the server's backup/UPnP after "Downloaded N of N" as a stall. With the Java loop: a server that stops reporting for 30 s is restarted at once (the original hang was the server frozen inside a Steam call, where no re-request can help); bytes are the only progress measure (no size allowance, which with 4 items in flight could delay a restart by minutes); the server's own re-request gets 20 s before a restart; a Steam that leaves normal-priority requests waiting gets them pushed after 8 s and the loop then goes one at a time. Lines from a server process that is being killed are ignored.
+- **2.0.0** (2026-10-29, published on GitHub and the Steam Workshop, not yet run in the game; same build as rc2). **2.0.0-rc2**: ZombieBuddy is really optional now (rc1 listed it under `require=` in `mod.info`, so the game demanded it even for the Lua watchdog; ZombieBuddy itself loads the jar from `javaJarFile` alone). The watchdog no longer counts the server's backup/UPnP after "Downloaded N of N" as a stall. With the Java loop: a server that stops reporting for 30 s is restarted at once (the original hang was the server frozen inside a Steam call, where no re-request can help); bytes are the only progress measure (no size allowance, which with 4 items in flight could delay a restart by minutes); the server's own re-request gets 20 s before a restart; a Steam that leaves normal-priority requests waiting gets them pushed after 8 s and the loop then goes one at a time. Lines from a server process that is being killed are ignored.
 - **2.0.0-rc1** (2026-10-28): Java part (parallel download loop through ZombieBuddy); 1.0 Lua watchdog.
 
 ## Please note
 - This mod was made 100% with AI.
 - It was made only for playing with a friend.
-- Not yet tested in the game. GitHub carries experiments; the Steam Workshop gets only tested versions.
+- Not yet tested in a real hosting session.
 
 ## My mods
 - [SmoothRide MP](https://steamcommunity.com/sharedfiles/filedetails/?id=3827367565) — smooth multiplayer vehicles.
 - [ZombieSync MP](https://steamcommunity.com/sharedfiles/filedetails/?id=3827946115) — smooth multiplayer zombies.
+- [Tripping Zombies MP Fix](https://steamcommunity.com/sharedfiles/filedetails/?id=3829034899) — the same Tripping Zombies trips for every player.
+- [Wandering Hordes Save Trim](https://steamcommunity.com/sharedfiles/filedetails/?id=3829140377) — no more save freezes from Wandering Hordes' wall map.
 - **Host Unstuck** — un-sticks and speeds up the Workshop download when hosting from the menu (this mod).
 
 ## License
