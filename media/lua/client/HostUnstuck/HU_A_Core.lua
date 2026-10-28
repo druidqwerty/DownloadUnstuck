@@ -1,4 +1,4 @@
--- Host Unstuck: watchdog for the Workshop download step of the "Host" screen.
+-- Download Unstuck: watchdog for the Workshop download step of the "Host" screen.
 -- This file is the state machine only (no UI, no game calls except the hooks below), so it can be
 -- simulated outside the game. HU_B_Screen.lua plugs it into CoopOptionsScreen, HU_C_Options.lua adds settings.
 --
@@ -16,7 +16,7 @@
 -- everything works as in 1.0.
 HostUnstuck = HostUnstuck or {}
 local HU = HostUnstuck
-HU.VERSION = "2.0.0"
+HU.VERSION = "2.0.1"
 
 HU.defaults = { enabled = true, stallSeconds = 40, maxRestarts = 8, launchTimeout = 120, parallel = true, maxParallel = 4, maxKicks = 2 }
 HU.settings = HU.settings or {}

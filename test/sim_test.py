@@ -1,4 +1,4 @@
-"""Simulation of Host Unstuck outside the game (lupa).
+"""Simulation of Download Unstuck outside the game (lupa).
 
 Stubs the handful of game globals the mod touches, loads HU_A_Core.lua + HU_B_Screen.lua, then plays scripted
 server message sequences against a fake clock and checks what the watchdog does.

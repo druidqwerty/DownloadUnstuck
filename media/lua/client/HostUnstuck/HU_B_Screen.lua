@@ -1,4 +1,4 @@
--- Host Unstuck: plugs the watchdog (HU_A_Core.lua) into the vanilla Host screen (OptionScreens/CoopOptionsScreen.lua).
+-- Download Unstuck: plugs the watchdog (HU_A_Core.lua) into the vanilla Host screen (OptionScreens/CoopOptionsScreen.lua).
 -- Everything here runs in the main menu of the hosting player. The server process is untouched by the Lua side;
 -- the optional Java part (ZombieBuddy) replaces its download loop and reports through the "hostunstuck" message.
 if not HostUnstuck or not CoopOptionsScreen then return end
