@@ -27,7 +27,7 @@ class hash = gate 4d2ababb…), ZombieBuddy still 2.3.4.
 - **After "Downloaded N of N" the server needs 8.5 s** (ZipBackup "Start making backup" 5.3 s + UPnP 3.2 s, all four
   logged runs) before "UI_ServerStatus_Initialising"; rc1 kept the stall timer running (40 s), a big save or a slow
   router would have killed a healthy server. Fixed: N of N → phase "after".
-- Steam timings from the logs (`tools/vanilla_log_timings.py <coop-console log>`, 58 vanilla downloads): request → Downloading flag median
+- Steam timings from the logs (`tools/vanilla_log_timings.py <coop-console log>`, 59 vanilla downloads in 4 server runs of logs.zip): request → Downloading flag median
   3.7 s, max 4.2 s; bytes are reported (`GetItemDownloadInfo` 0/0 during setup, then real bytes, 100 MB ≈ 10 s).
 - The game itself always downloads one item with `DownloadItem(id, true)` (server and `ConnectToServerState`), so
   "normal priority downloads start by themselves" is unverified. Added the push: Steam works on none of our downloads
