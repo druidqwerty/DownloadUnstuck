@@ -6,7 +6,6 @@ url=https://github.com/druidqwerty/HostUnstuck
 category=features
 versionMin=42.0
 modversion=2.0.0
-require=\ZombieBuddy
 javaJarFile=media/java/HostUnstuck.jar
 javaPkgName=com.druid.hostunstuck
 ZBVersionMin=2.3.4

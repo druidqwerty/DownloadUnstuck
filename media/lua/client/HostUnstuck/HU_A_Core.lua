@@ -10,8 +10,10 @@
 -- and continues from the stuck one. This watchdog does exactly that automatically.
 --
 -- 2.0: with ZombieBuddy the Java part of the mod replaces the server's download loop (several items at once, a
--- stuck download is requested again). That loop reports through the "hostunstuck" message; here it only means
--- "bytes still moving = not stalled" and a richer second line. Without ZombieBuddy everything works as in 1.0.
+-- stuck download is requested again). That loop reports through the "hostunstuck" message once a second; here it
+-- means "bytes still moving = not stalled", "no report for 30 s = the server froze inside Steam" (the real hang of
+-- 2026-10-27: the server's log stopped in the middle of a Steam call) and a richer second line. Without ZombieBuddy
+-- everything works as in 1.0.
 HostUnstuck = HostUnstuck or {}
 local HU = HostUnstuck
 HU.VERSION = "2.0.0"
@@ -27,6 +29,8 @@ HU.RELAUNCH_DELAY_MS = 2500          -- pause between "process terminated" and p
 HU.ABORT_GRACE_MS = 15000            -- if the process does not die after abort(), abort again
 HU.WORKSHOP_BAR_WEIGHT = 0.5         -- the Workshop step fills this much of the progress bar; vanilla steps add the rest
 HU.JAVA_DEATHS_LIMIT = 2             -- server deaths during the Workshop step with the Java loop active -> Java part off
+HU.JAVA_SILENCE_MS = 30000           -- Java loop: no report at all for this long = the server is frozen -> restart now
+HU.JAVA_KICK_GRACE_MS = 20000        -- Java loop: its own re-request comes after stallSeconds; give it this long to work
 
 HU.javaDeaths = HU.javaDeaths or 0   -- per game session, not per launch
 HU.javaDisabled = HU.javaDisabled or false
@@ -67,6 +71,7 @@ function HU.reset()
         failedItem = nil, expectReinstall = false,
         lastStuckItem = nil, reason = nil,
         javaActive = false, java = nil,   -- Java loop in the server: parsed "hostunstuck" line
+        javaLastInfo = nil,               -- when the last "hostunstuck" line arrived
         items = HU.s and HU.s.items or nil,
         details = HU.s and HU.s.details or {},
     }
@@ -155,6 +160,7 @@ function HU.onJavaInfo(payload)
         s.javaActive = true
         log("Java loop reports from the server: " .. payload)
     end
+    s.javaLastInfo = t
     local old = s.java
     if s.phase == "launching" or s.phase == "query" then HU.setPhase("download") end
     if (info.bytes or 0) > ((old and old.bytes) or 0) or (info.done or 0) ~= s.done then
@@ -171,6 +177,8 @@ function HU.onServerMessage(tag, cookie, payload)
         return HU.onTerminated()
     end
     if s.phase == "idle" then return nil end
+    -- lines still in the pipe of a process we have just killed must not move the state back
+    if s.phase == "restarting" then return nil end
     if tag == "hostunstuck" then return HU.onJavaInfo(payload) end
     if tag ~= "status" then return nil end
     local kind, a, b = HU.classify(payload)
@@ -183,12 +191,18 @@ function HU.onServerMessage(tag, cookie, payload)
         HU.setPhase("query")
         return "query"
     elseif kind == "progress" then
-        HU.setPhase("download")
         local wasReinstall = s.expectReinstall
         s.expectReinstall = false
         if a ~= s.done or b ~= s.total then
             s.done, s.total = a, b
             s.lastCountChange = t
+        end
+        -- "Downloaded N of N": nothing is left to download. The server now makes a backup and sets up UPnP (8.5 s
+        -- in the 2026-10-27 logs, longer with a big save) before its next status; that is not a stall.
+        if b > 0 and a >= b then
+            HU.setPhase("after")
+        else
+            HU.setPhase("download")
         end
         if wasReinstall then return "reinstall", a, b end
         return "progress", a, b
@@ -225,29 +239,26 @@ function HU.onDetails(_, status, info)
     if not ok then log("item details failed: " .. tostring(err)) end
 end
 
--- Largest known size among the items being downloaded (bytes), for the stall allowance.
-function HU.inFlightSize()
-    local s = HU.s
-    local size = 0
-    if s.javaActive and s.java and s.java.ids then
-        for _, e in ipairs(s.java.ids) do
-            local d = s.details[e.id]
-            local n = math.max(e.total or 0, (d and d.size) or 0)
-            if n > size then size = n end
-        end
-        return size
-    end
+-- Size of the item being downloaded (bytes), for the stall allowance of the game's own loop.
+function HU.currentItemSize()
     local item = HU.currentItem()
-    local d = item and s.details[item]
+    local d = item and HU.s.details[item]
     return (d and d.size) or 0
 end
 
+-- Game's loop: only the counter shows progress, so a big item gets size / ASSUMED_SPEED extra seconds.
+-- Java loop: every byte counts as progress, so no size allowance; instead its own re-request (after stallSeconds)
+-- gets JAVA_KICK_GRACE_MS to work before the server is restarted.
 function HU.stallLimitMs()
     local s = HU.s
     local limit = (tonumber(HU.settings.stallSeconds) or HU.defaults.stallSeconds) * 1000
-    local size = HU.inFlightSize()
-    if size > 0 then
-        limit = limit + size / HU.ASSUMED_SPEED * 1000
+    if s.javaActive then
+        limit = limit + HU.JAVA_KICK_GRACE_MS
+    else
+        local size = HU.currentItemSize()
+        if size > 0 then
+            limit = limit + size / HU.ASSUMED_SPEED * 1000
+        end
     end
     if s.stuckOn ~= nil and s.stuckOn == s.done and s.stuckRestarts > 0 then
         limit = limit * (2 ^ s.stuckRestarts)
@@ -363,6 +374,7 @@ function HU.onStart(auto, serverName)
     s.failedItem = nil
     s.javaActive = false
     s.java = nil
+    s.javaLastInfo = nil
     s.lastCountChange = now()
     HU.setPhase("launching")
 end
@@ -410,7 +422,11 @@ function HU.tick()
         local limit = (tonumber(HU.settings.launchTimeout) or HU.defaults.launchTimeout) * 1000
         if t - s.phaseStart > limit then HU.requestRestart(s.phase .. "-timeout") end
     elseif s.phase == "download" then
-        if t - s.lastCountChange > HU.stallLimitMs() then HU.requestRestart("stall") end
+        if s.javaActive and s.javaLastInfo and t - s.javaLastInfo > HU.JAVA_SILENCE_MS then
+            HU.requestRestart("silent")
+        elseif t - s.lastCountChange > HU.stallLimitMs() then
+            HU.requestRestart("stall")
+        end
     end
 end
 

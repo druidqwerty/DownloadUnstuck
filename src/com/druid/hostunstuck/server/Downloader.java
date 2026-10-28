@@ -4,8 +4,10 @@ import java.util.List;
 
 /**
  * Workshop installer for the server process. Same job as the game's GameServerWorkshopItems.Install (42.21), with two
- * differences: several items are requested from Steam at once instead of strictly one after another, and when no
- * download makes any progress for a while the oldest one is requested again instead of waiting forever. Everything
+ * differences: several items are requested from Steam at once (normal priority) instead of strictly one after another,
+ * and when no download makes any progress for a while the oldest one is requested again instead of waiting forever.
+ * If Steam leaves normal-priority requests waiting, the oldest is pushed with high priority, and when that is needed for
+ * most items the loop goes on one at a time with high priority like the game (see pushOldest). Everything
  * else (item states, failed items, reinstall tries, status lines) follows the game's loop so the Host screen and the
  * Lua side see what they expect. No game classes here: the loop runs in an offline simulation (test/SimTest.java).
  */
@@ -13,6 +15,8 @@ public final class Downloader {
     public static final String VERSION = "2.0.0";
     /** Reinstall attempts per item before the whole step fails, as in the game. */
     public static final int MAX_TRIES = 3;
+    /** Pushes (see pushOldest) after which, if they are needed for most downloads, the loop goes one at a time. */
+    public static final int PUSHES_TO_SEQUENTIAL = 3;
 
     /** ISteamUGC EItemState flags (SteamWorkshopItem.ItemState in the game). */
     public static final long ST_NONE = 0, ST_INSTALLED = 4, ST_NEEDS_UPDATE = 8, ST_DOWNLOADING = 16, ST_DOWNLOAD_PENDING = 32;
@@ -54,6 +58,8 @@ public final class Downloader {
         State state = State.CHECK;
         String error;
         int tries, kicks;
+        /** Requested with high priority since its last request (directly, pushed or kicked). */
+        boolean promoted;
         long startedAt, lastPollAt, lastState = -1, bytes = -1, total;
 
         public Item(long id) {
@@ -74,7 +80,10 @@ public final class Downloader {
     private final Reporter rep;
     private List<Item> items;
     private long lastGlobalProgress;
-    private int kicks;
+    /** Last sign that Steam works on anything we asked for: a request, the Downloading flag, new bytes, a finished item. */
+    private long lastActivity;
+    private int kicks, pushes, downloaded;
+    private int parallel = 1;
 
     public Downloader(Settings cfg, Backend be, Reporter rep) {
         this.cfg = cfg;
@@ -86,6 +95,15 @@ public final class Downloader {
         return kicks;
     }
 
+    public int pushes() {
+        return pushes;
+    }
+
+    /** Downloads in flight allowed right now: the setting, or 1 after the loop switched to one at a time. */
+    public int parallel() {
+        return parallel;
+    }
+
     /** Steam callback: the item finished downloading. The state is checked again before it counts as ready. */
     public void onDownloaded(long id) {
         Item it = find(id);
@@ -94,6 +112,8 @@ public final class Downloader {
         }
         be.log("downloaded " + id + " in " + (be.now() - it.startedAt) + " ms");
         lastGlobalProgress = be.now();
+        lastActivity = lastGlobalProgress;
+        downloaded++;
         it.state = State.CHECK;
     }
 
@@ -126,8 +146,9 @@ public final class Downloader {
         boolean[] counted = new boolean[n];
         long t0 = be.now();
         lastGlobalProgress = t0;
+        lastActivity = t0;
         long lastInfo = Long.MIN_VALUE / 2;
-        int parallel = Math.max(1, cfg.maxParallel);
+        parallel = Math.max(1, cfg.maxParallel);
         rep.progress(0, n);
         while (true) {
             be.runLoop();
@@ -191,6 +212,9 @@ public final class Downloader {
             if (!busy) {
                 break;
             }
+            if (inFlight > 0 && t - lastActivity > cfg.promoteMs) {
+                pushOldest(t);
+            }
             if (inFlight > 0 && t - lastGlobalProgress > cfg.stallSeconds * 1000L) {
                 kickOldest(t);
             }
@@ -201,7 +225,8 @@ public final class Downloader {
             be.sleep(cfg.pollMs);
         }
         rep.info(info(done, n, be.now() - t0));
-        be.log("all " + n + " items ready in " + (be.now() - t0) / 1000 + " s, " + kicks + " re-requests");
+        be.log("all " + n + " items ready in " + (be.now() - t0) / 1000 + " s, " + kicks + " re-requests, " + pushes
+                + " pushes, " + downloaded + " downloads, parallel x" + parallel + " at the end");
         return true;
     }
 
@@ -219,11 +244,13 @@ public final class Downloader {
         if (st == ST_NONE || (st & ST_NEEDS_UPDATE) != 0 || folder == null || !be.folderExists(folder)) {
             if (be.download(it.id, highPriority)) {
                 it.state = State.PENDING;
+                it.promoted = highPriority;
                 it.startedAt = t;
                 it.lastPollAt = t;
                 it.bytes = -1;
                 it.total = 0;
                 it.lastState = -1;
+                lastActivity = t;
                 return;
             }
             it.error = "DownloadItemFalse";
@@ -248,13 +275,50 @@ public final class Downloader {
             it.lastState = st;
             be.log("state " + stateString(st) + " ID=" + it.id);
         }
+        if ((st & ST_DOWNLOADING) != 0) {
+            lastActivity = t;
+        }
         long[] p = new long[2];
         if (be.downloadInfo(it.id, p) && p[0] != it.bytes) {
             if (p[0] > it.bytes) {
                 lastGlobalProgress = t;
+                lastActivity = t;
             }
             it.bytes = p[0];
             it.total = p[1];
+        }
+    }
+
+    /**
+     * Steam has worked on none of our downloads for promoteMs (no Downloading flag, no new bytes): the oldest one that
+     * was requested with normal priority is requested again with high priority. Steam normally takes about 4 s to start
+     * an item, so this only fires when it leaves queued downloads waiting. When most downloads need such a push, the
+     * loop goes on one item at a time, every request with high priority, as the game itself does.
+     */
+    private void pushOldest(long t) {
+        lastActivity = t;
+        Item oldest = null;
+        for (Item it : items) {
+            if (it.state == State.PENDING && !it.promoted && (oldest == null || it.startedAt < oldest.startedAt)) {
+                oldest = it;
+            }
+        }
+        if (oldest == null) {
+            return;
+        }
+        oldest.promoted = true;
+        pushes++;
+        be.log("Steam works on none of our downloads for " + cfg.promoteMs / 1000 + " s, requesting ID=" + oldest.id
+                + " with high priority (push " + pushes + ")");
+        if (!be.download(oldest.id, true)) {
+            oldest.error = "DownloadItemFalse";
+            oldest.state = State.FAIL;
+            return;
+        }
+        if (parallel > 1 && pushes >= PUSHES_TO_SEQUENTIAL && pushes * 2 >= downloaded) {
+            parallel = 1;
+            be.log("Steam does not start queued downloads by itself here (" + pushes + " pushes for " + downloaded
+                    + " downloads): one item at a time from now on");
         }
     }
 
@@ -282,7 +346,10 @@ public final class Downloader {
         if (!be.download(oldest.id, true)) {
             oldest.error = "DownloadItemFalse";
             oldest.state = State.FAIL;
+            return;
         }
+        oldest.promoted = true;
+        lastActivity = t;
     }
 
     /** One line for the host's screen: key=value pairs, ASCII only (the server's stdout garbles anything else). */
@@ -307,7 +374,8 @@ public final class Downloader {
             }
         }
         sb.append("v=2;done=").append(done).append(";total=").append(total).append(";active=").append(active)
-                .append(";bytes=").append(bytes).append(";kicks=").append(kicks).append(";elapsed=").append(elapsedMs / 1000)
+                .append(";bytes=").append(bytes).append(";kicks=").append(kicks).append(";pushes=").append(pushes)
+                .append(";par=").append(parallel).append(";elapsed=").append(elapsedMs / 1000)
                 .append(";ids=").append(ids);
         return sb.toString();
     }

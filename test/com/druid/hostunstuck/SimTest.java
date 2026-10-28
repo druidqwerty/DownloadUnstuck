@@ -22,13 +22,16 @@ public final class SimTest {
             boolean hangsUntilKick, hangsForever, failOnce, refuse;
             int downloads;
             long startedAt, bytes;
-            boolean queued, active;
+            boolean queued, active, high;
         }
 
         long clock;
         int concurrency = 4;
+        /** Per-item setup before the first byte; the real Steam shows no Downloading flag during it (3.7-4.2 s in the logs). */
         long overheadMs = 5000;
         long bytesPerSec = 1_500_000;
+        /** A Steam that starts only high-priority requests (the unknown the first in-game test answers). */
+        boolean lowPriorityNeverStarts;
         final Map<Long, Entry> entries = new HashMap<>();
         final Deque<Entry> queue = new ArrayDeque<>();
         final List<Entry> active = new ArrayList<>();
@@ -54,10 +57,10 @@ public final class SimTest {
             if (e.needsUpdate) {
                 st |= Downloader.ST_NEEDS_UPDATE;
             }
-            if (e.queued) {
+            if (e.queued || e.active) {
                 st |= Downloader.ST_DOWNLOAD_PENDING;
             }
-            if (e.active) {
+            if (e.active && !e.hangsUntilKick && !e.hangsForever && clock - e.startedAt >= overheadMs) {
                 st |= Downloader.ST_DOWNLOADING;
             }
             return st;
@@ -97,12 +100,14 @@ public final class SimTest {
             if (!e.queued && !e.active) {
                 e.queued = true;
                 e.bytes = 0;
+                e.high = highPriority;
                 if (highPriority) {
                     queue.addFirst(e);
                 } else {
                     queue.addLast(e);
                 }
             } else if (highPriority && e.queued) {
+                e.high = true;
                 queue.remove(e);
                 queue.addFirst(e);
             }
@@ -149,12 +154,22 @@ public final class SimTest {
                     dl.onDownloaded(e.id);
                 }
             }
-            while (active.size() < concurrency && !queue.isEmpty()) {
-                Entry e = queue.pollFirst();
-                e.queued = false;
-                e.active = true;
-                e.startedAt = clock;
-                active.add(e);
+            while (active.size() < concurrency) {
+                Entry next = null;
+                for (Entry e : queue) {
+                    if (e.high || !lowPriorityNeverStarts) {
+                        next = e;
+                        break;
+                    }
+                }
+                if (next == null) {
+                    break;
+                }
+                queue.remove(next);
+                next.queued = false;
+                next.active = true;
+                next.startedAt = clock;
+                active.add(next);
             }
         }
 
@@ -276,6 +291,7 @@ public final class SimTest {
         check(par.result && seq.result, "both ok");
         checkMonotonic(par);
         check(par.dl.kicks() == 0 && seq.dl.kicks() == 0, "no re-requests in a healthy run");
+        check(par.dl.pushes() == 0 && seq.dl.pushes() == 0 && par.dl.parallel() == 4, "no pushes, still x4 at the end");
         check(par.seconds() * 3 < seq.seconds(), "parallel " + par.seconds() + " s vs sequential " + seq.seconds() + " s");
         check(seq.steam.entries.values().stream().allMatch(e -> e.downloads == 1), "sequential: every item requested once");
         check(par.rec.infos.size() > 10 && par.rec.infos.get(3).startsWith("v=2;done="), "info lines sent: " + par.rec.infos.get(3));
@@ -286,6 +302,7 @@ public final class SimTest {
         ser.go();
         check(ser.result, "ok");
         check(ser.dl.kicks() == 0, "no re-requests while another download makes progress");
+        check(ser.dl.pushes() == 0, "no pushes: Steam starts the next queued item within its usual setup time");
         checkMonotonic(ser);
 
         System.out.println("one item hangs in DownloadPending until it is requested again");
@@ -293,9 +310,25 @@ public final class SimTest {
         hang.entry(20).hangsUntilKick = true;
         hang.go();
         check(hang.result, "ok");
-        check(hang.dl.kicks() == 1 && hang.entry(20).downloads == 2, "exactly one re-request, for the hung item");
+        check(hang.dl.kicks() == 0 && hang.dl.pushes() == 1 && hang.entry(20).downloads == 2,
+                "one push (8 s, before any 40 s re-request) for the hung item: kicks " + hang.dl.kicks() + ", pushes " + hang.dl.pushes());
         check(hang.rec.failed.isEmpty(), "no failure reported");
         checkMonotonic(hang);
+
+        System.out.println("Steam starts only high-priority requests: pushes, then one at a time with high priority");
+        Run lazy = new Run().items(60, 1_000_000, false);
+        lazy.steam.lowPriorityNeverStarts = true;
+        lazy.go();
+        Run lazySeq = new Run().items(60, 1_000_000, false);
+        lazySeq.steam.lowPriorityNeverStarts = true;
+        lazySeq.cfg.maxParallel = 1;
+        lazySeq.go();
+        check(lazy.result && lazySeq.result, "both ok");
+        check(lazy.dl.parallel() == 1 && lazy.dl.pushes() >= Downloader.PUSHES_TO_SEQUENTIAL && lazy.dl.pushes() <= 8,
+                "switched to one at a time after " + lazy.dl.pushes() + " pushes");
+        check(lazy.dl.kicks() == 0 && lazySeq.dl.pushes() == 0, "no 40 s re-requests; the sequential run needs no pushes");
+        check(lazy.seconds() < lazySeq.seconds() + 60, "lazy Steam costs < 1 min over one-by-one: " + lazy.seconds() + " s vs " + lazySeq.seconds() + " s");
+        checkMonotonic(lazy);
 
         System.out.println("an item never moves: re-requests, then the game's reinstall path, then the step fails");
         Run dead = new Run().items(30, 1_000_000, false);
@@ -306,7 +339,7 @@ public final class SimTest {
         check(dead.rec.reinstalls == 2 && dead.steam.deletes == 2, "two reinstall rounds");
         check(dead.dl.kicks() == 6, "2 re-requests per try: " + dead.dl.kicks());
         long stallBudget = dead.cfg.stallSeconds * 3L * 3L;
-        check(dead.seconds() < stallBudget + 60, "gave up within " + dead.seconds() + " s");
+        check(dead.seconds() < stallBudget + 90, "gave up within " + dead.seconds() + " s (3 tries x 3 stall periods after the other items)");
 
         System.out.println("installed but updated on the Workshop: folder removed and downloaded again");
         Run upd = new Run().items(10, 1_000_000, true);
@@ -336,7 +369,8 @@ public final class SimTest {
         s.set("maxKicks", "99");
         s.set("junk", "1");
         s.set("pollMs", "abc");
-        check(s.maxParallel == 9 && s.stallSeconds == 5 && s.maxKicks == 10 && s.pollMs == 100, "clamped: " + s);
+        s.set("promoteMs", "10");
+        check(s.maxParallel == 9 && s.stallSeconds == 5 && s.maxKicks == 10 && s.pollMs == 100 && s.promoteMs == 1000, "clamped: " + s);
 
         System.out.println(failures == 0 ? "ALL OK" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);

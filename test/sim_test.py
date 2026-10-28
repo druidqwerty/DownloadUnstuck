@@ -172,11 +172,15 @@ def test_normal_run():
     boot(lua)
     check(lua.eval("S().phase") == "query", "query phase after the count message")
     check(lua.eval("queried.n") == 308, "details queried for all 308 ids")
-    for n in range(0, 309):
+    for n in range(0, 308):
         progress(lua, n, step_ms=5000)
     check(lua.eval("S().phase") == "download", "download phase")
+    progress(lua, 308)
+    check(lua.eval("S().phase") == "after", "after phase as soon as the counter reads 308 of 308")
     check(lua.eval("I().serverStatus") == "UI_HU_Status_Downloaded 308 308", "status translated: " + lua.eval("I().serverStatus"))
     check(abs(lua.eval("I().serverProgressBar.p") - 0.5) < 1e-9, "bar at the workshop weight when all items are done")
+    lua.execute("advance(90000)")
+    check(lua.eval("calls.abort") == 0, "no abort while the server makes its backup and UPnP before the next status (90 s)")
     lua.execute("status('UI_ServerStatus_Initialising')")
     check(lua.eval("S().phase") == "after", "after phase once the Workshop step is over")
     lua.execute("advance(600000)")
@@ -332,16 +336,16 @@ def test_disabled():
     check(lua.eval("calls.launch") == 1, "no relaunch when disabled")
 
 
-def java_info(lua, done, total, active, nbytes, ids, kicks=0):
-    lua.execute(f"msg('hostunstuck', 'v=2;done={done};total={total};active={active};bytes={nbytes};kicks={kicks};elapsed=1;ids={ids}')")
+def java_info(lua, done, total, active, nbytes, ids, kicks=0, par=4):
+    lua.execute(f"msg('hostunstuck', 'v=2;done={done};total={total};active={active};bytes={nbytes};kicks={kicks};pushes=0;par={par};elapsed=1;ids={ids}')")
 
 
 def test_java_bytes_count_as_progress():
-    print("Java loop: moving bytes are progress, the stall allowance follows the biggest item in flight")
+    print("Java loop: moving bytes are progress; no size allowance, the server's own re-request gets 20 s")
     lua = make_runtime()
     boot(lua)
     progress(lua, 10)
-    ids = "3000000010:500000/50000000,3000000011:0/1000000"
+    ids = "3000000010:500000/500000000,3000000011:0/1000000"  # a 477 MB item in flight
     for i in range(120):
         java_info(lua, 10, 308, 2, 1000000 * (i + 1), ids)
         lua.execute("advance(1000)")
@@ -350,13 +354,60 @@ def test_java_bytes_count_as_progress():
     line = lua.eval("HostUnstuck.statusLine()")
     check("UI_HU_Line_Parallel 4 2" in line and "UI_HU_Line_Downloaded 114.4" in line, "second line shows the parallel info (120e6 B = 114.4 MiB): " + line)
     check(lua.eval("HostUnstuck.currentItem()") == "3000000010", "current item = first in flight")
-    check(abs(lua.eval("HostUnstuck.stallLimitMs()") - (40000 + 50000000 / 1.5 / 1048576 * 1000)) < 1, "limit = 40 s + 50 MB / 1.5 MB/s")
-    for i in range(70):
-        java_info(lua, 10, 308, 2, 120000000, ids)
+    check(lua.eval("HostUnstuck.stallLimitMs()") == 60000, "limit = 40 s + 20 s for the re-request, whatever the size in flight")
+    for i in range(55):
+        java_info(lua, 10, 308, 2, 120000000, ids, kicks=1 if i >= 40 else 0)
         lua.execute("advance(1000)")
-    check(lua.eval("calls.abort") == 0, "no restart at 70 s: the 50 MB item gets its extra time")
-    lua.execute("advance(5000)")
-    check(lua.eval("calls.abort") == 1, "restart once nothing moved for the whole allowance")
+    check(lua.eval("calls.abort") == 0, "no restart at 56 s without new bytes: the re-request at 40 s still has time")
+    for i in range(7):
+        java_info(lua, 10, 308, 2, 120000000, ids, kicks=1)
+        lua.execute("advance(1000)")
+    check(lua.eval("calls.abort") == 1 and lua.eval("S().reason") == "stall", "restart at 60 s without new bytes")
+
+
+def test_java_silence_restarts_fast():
+    print("Java loop: no report for 30 s = server frozen inside Steam (the 2026-10-27 hang) -> restart")
+    lua = make_runtime()
+    boot(lua)
+    progress(lua, 10)
+    lua.execute("HostUnstuck.s.details['3000000010'] = { title = 'Big Map', size = 600 * 1048576 }")
+    java_info(lua, 10, 308, 1, 0, "3000000010:0/0")
+    lua.execute("advance(29000)")
+    check(lua.eval("calls.abort") == 0, "no restart after 29 s of silence")
+    lua.execute("advance(2000)")
+    check(lua.eval("calls.abort") == 1 and lua.eval("S().reason") == "silent", "restart after 30 s without any report, big item or not")
+    plain = make_runtime()
+    boot(plain)
+    progress(plain, 10)
+    plain.execute("advance(35000)")
+    check(plain.eval("calls.abort") == 0, "the game's own loop reports only per item: silence alone is no reason there")
+
+
+def test_java_line_shows_real_parallelism():
+    print("Java loop: the second line shows what the server loop really uses")
+    lua = make_runtime()
+    boot(lua)
+    progress(lua, 3)
+    java_info(lua, 3, 308, 1, 1000, "3000000003:1000/2000000", par=1)
+    line = lua.eval("HostUnstuck.statusLine()")
+    check("UI_HU_Line_Parallel 1 1" in line, "x1 after the loop switched to one at a time: " + line)
+
+
+def test_lines_of_a_killed_process_are_ignored():
+    print("lines that arrive after the abort do not move the state back")
+    lua = make_runtime()
+    boot(lua)
+    for n in range(0, 20):
+        progress(lua, n)
+    lua.execute("advance(41000)")
+    check(lua.eval("calls.abort") == 1 and lua.eval("S().phase") == "restarting", "stall -> abort, restarting")
+    progress(lua, 308)
+    java_info(lua, 308, 308, 0, 5000, "")
+    check(lua.eval("S().phase") == "restarting" and lua.eval("S().done") == 19, "still restarting, the counter is not moved by the killed process")
+    lua.execute("advance(16000)")
+    check(lua.eval("calls.abort") == 2, "abort repeated when the process is still alive after 15 s")
+    lua.execute("terminated(); advance(3000)")
+    check(lua.eval("calls.launch") == 2 and lua.eval("S().phase") == "launching", "relaunched once it is gone")
 
 
 def test_java_crash_guard():

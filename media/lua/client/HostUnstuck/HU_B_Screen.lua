@@ -155,7 +155,9 @@ function HU.statusLine()
                 end
                 table.insert(names, label)
             end
-            table.insert(parts, getText("UI_HU_Line_Parallel", HU.fmtInt(HU.settings.maxParallel), HU.fmtInt(s.java.active or 0), table.concat(names, ", ")))
+            -- "par" is what the server loop really uses (1 after it switched to one at a time)
+            local par = tonumber(s.java.par) or tonumber(HU.settings.maxParallel) or HU.defaults.maxParallel
+            table.insert(parts, getText("UI_HU_Line_Parallel", HU.fmtInt(par), HU.fmtInt(s.java.active or 0), table.concat(names, ", ")))
             table.insert(parts, getText("UI_HU_Line_Downloaded", string.format("%.1f", (s.java.bytes or 0) / 1048576)))
             if (s.java.kicks or 0) > 0 then table.insert(parts, getText("UI_HU_Line_Kicks", HU.fmtInt(s.java.kicks))) end
         else

@@ -16,6 +16,8 @@ public final class Settings {
     public int stallSeconds = 40;
     /** Re-requests per item before it is treated as failed (then the game's own reinstall path applies). */
     public int maxKicks = 2;
+    /** Steam works on none of the downloads for this long -> the oldest normal-priority one is pushed (high priority). */
+    public int promoteMs = 8000;
     /** How often each pending download is polled, ms. */
     public int pollMs = 100;
     /** How often the structured "hostunstuck" status line is sent to the host's screen, ms. */
@@ -51,6 +53,7 @@ public final class Settings {
             case "parallel" -> maxParallel = clamp(v, 0, 32);
             case "stallSeconds" -> stallSeconds = clamp(v, 5, 600);
             case "maxKicks" -> maxKicks = clamp(v, 0, 10);
+            case "promoteMs" -> promoteMs = clamp(v, 1000, 120000);
             case "pollMs" -> pollMs = clamp(v, 20, 2000);
             case "infoMs" -> infoMs = clamp(v, 200, 10000);
             default -> {
@@ -65,6 +68,6 @@ public final class Settings {
     @Override
     public String toString() {
         return "parallel=" + maxParallel + " stallSeconds=" + stallSeconds + " maxKicks=" + maxKicks
-                + " pollMs=" + pollMs + " infoMs=" + infoMs;
+                + " promoteMs=" + promoteMs + " pollMs=" + pollMs + " infoMs=" + infoMs;
     }
 }

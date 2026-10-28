@@ -5,6 +5,61 @@ server downloads Workshop items. 1.0 (Lua): watches the counter, restarts the se
 stalls, readable status (RU arrives garbled from the server process), the item being downloaded, an honest bar.
 2.0 (Java, ZombieBuddy): replaces the server's download loop with a parallel one that re-requests stuck items.
 
+## 2.0.0-rc2 (2026-10-29): review before the first in-game run, offline tests green, NOT run in the game
+
+User (2026-10-29): "Проверяй надо ли доделать или улучшить HostUnstuck. если надо, то делай". The game has not run
+since 2026-10-28 01:58 (console.txt), so rc1 was never tested. Game still 42.21 (buildid 25485521, jar 2026-10-12,
+class hash = gate 4d2ababb…), ZombieBuddy still 2.3.4.
+
+### Findings
+- **`require=\ZombieBuddy` contradicted the design** (README, Steam draft, options all say ZB is optional). ZB's loader
+  (`/tmp/zbsrc/.../JavaModInfo.java`, `Loader.loadMods`) reads only `javaJarFile`/`javaPkgName`/`ZBVersion*` of active
+  mods and never looks at `require`; BetterVehicleDynamics, ImmersiveLootingB42, pz3dMinimap ship jars without it.
+  Removed: without ZB the Lua watchdog works, with ZB the jar loads as before.
+- **The real hang was a frozen server thread.** `Logs/logs_2026-10-27_23-38/2026-10-27_23-34_DebugLog-server.txt`
+  ends at 23:37:32.249 = its mtime = the last poll line ("Installed|DownloadPending" for 3818327441); vanilla logs a
+  poll every 100 ms, the process lived 41 s more. So the thread was stuck inside a Steam call: no Java re-request can
+  help, only killing the process. rc1's Lua limit with the Java loop was stallSeconds + size of the biggest item in
+  flight (a 500 MB item = +333 s). Fixed: no `hostunstuck` line for 30 s → restart at once (`HU.JAVA_SILENCE_MS`);
+  with the Java loop bytes are the only progress, limit = stallSeconds + 20 s (`HU.JAVA_KICK_GRACE_MS`), so the
+  server's own re-request at stallSeconds gets 20 s (rc1: Lua restarted at the same moment, the README's "re-request
+  before anything is restarted" was not true).
+- **After "Downloaded N of N" the server needs 8.5 s** (ZipBackup "Start making backup" 5.3 s + UPnP 3.2 s, all four
+  logged runs) before "UI_ServerStatus_Initialising"; rc1 kept the stall timer running (40 s), a big save or a slow
+  router would have killed a healthy server. Fixed: N of N → phase "after".
+- Steam timings from the logs (`tools/vanilla_log_timings.py <coop-console log>`, 58 vanilla downloads): request → Downloading flag median
+  3.7 s, max 4.2 s; bytes are reported (`GetItemDownloadInfo` 0/0 during setup, then real bytes, 100 MB ≈ 10 s).
+- The game itself always downloads one item with `DownloadItem(id, true)` (server and `ConnectToServerState`), so
+  "normal priority downloads start by themselves" is unverified. Added the push: Steam works on none of our downloads
+  (no Downloading flag, no new bytes, no request/finish) for `promoteMs` 8 s → the oldest normal-priority item is
+  requested with high priority; after ≥3 pushes with pushes × 2 ≥ finished downloads the loop goes one at a time
+  (high priority, = vanilla). SimTest "lazy Steam": 396 s vs 348 s one-by-one (rc1 would have waited 40 s per item).
+- Lines still in the pipe of a killed process could move the phase out of "restarting" (and so skip the 15 s
+  re-abort); ignored now.
+
+### Pre-flight API audit (rc2)
+| API | verdict | evidence |
+|---|---|---|
+| `CoopOptionsScreen` fields/methods (`instance`, `uiStatus`, `startButton`/`abortButton`/`backButton`, `serverProgressBar`, `progress`/`nextProgress`, `serverStatus`, `onStartButtonDown`, `onAbortButtonDown`, `prerender`, `onCoopServerMessage`) | OK | vanilla `client/OptionScreens/CoopOptionsScreen.lua` 194–240, 249–257, 494–552, 638–707 |
+| `Events.OnCoopServerMessage.Add(CoopOptionsScreen.onCoopServerMessage)` happens in `create()` (line 240), after our file replaced the field | OK | Lua load order: game files first, then mods (decomp `LuaManager.LoadDirBase` 1142–1218) |
+| `getServerSettingsManager():getSettingsCount/getSettingsByIndex`, `settings:getServerOptions():getOptionByName("WorkshopItems"):getValue()` | OK | CoopOptionsScreen.lua 325–329, ServerSettingsScreen.lua 1423 |
+| `querySteamWorkshopItemDetails(list, fn, arg)` → `fn(arg, "Completed", ArrayList)`, `getIDString/getTitle` | OK | ServerSettingsScreen.lua 1450, 1503–1510 (308 ids in one query work: server log numResult=308) |
+| `getFileWriter(name, true, false)` | OK | ISLayoutManager.lua 172 |
+| `CoopMaster.launchServer` builds `-Djava.class.path=` from the property, passes `-cachedir=` | OK | decomp `/tmp/pzsrc/zombie/network/CoopMaster.java` 95–137 |
+| `SteamWorkshop.DownloadItem(id, prio, cb)` adds the callback once (`contains` check) | OK | decomp `zombie/core/znet/SteamWorkshop.java` 195–199 |
+| Only `GameServer` references `GameServerWorkshopItems` (no inner-class mixing) | OK | grep decomp4 |
+| ZB `@Patch`/`@Patch.OnEnter/OnExit`, `@LuaMethod(global=true)` | OK | ZB `doc/ModdingGuide.md` 151–227 |
+| Local layout `42/` + empty `common/` | OK | SmoothRide, ZombieSyncMP use the same and load (default.txt, console.txt) |
+Residual unknowns for the test: whether Steam starts normal-priority requests by itself and overlaps the 3.7 s setup.
+
+### Status (2026-10-29)
+- `tools/build.sh` green: javac clean, SimTest ALL OK (10 scenarios), SelfTest OK, Lua sim 15/15. Jar sha256
+  f884bfb8…; installed to `C:\Users\druid\Zomboid\mods\HostUnstuck` (== dist). Version strings stay 2.0.0 (git tag
+  v2.0.0-rc2), so a passing test can be released as 2.0.0 without a rebuild.
+- In-game checks below still apply; additionally in `coop-console.txt`: `push N` lines (Steam left requests waiting),
+  `one item at a time from now on` (normal priority does not work here), and the final
+  `all N items ready in S s, K re-requests, P pushes, D downloads, parallel xX at the end`.
+
 ## 2.0.0 (2026-10-28 02:30): Java part written, offline tests green, NOT run in the game
 
 User (2026-10-28 00:30): "сделай сразу вторую версию, а потом прогоним тест как я буду готов"; GitHub may hold
