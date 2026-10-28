@@ -5,6 +5,18 @@ server downloads Workshop items. 1.0 (Lua): watches the counter, restarts the se
 stalls, readable status (RU arrives garbled from the server process), the item being downloaded, an honest bar.
 2.0 (Java, ZombieBuddy): replaces the server's download loop with a parallel one that re-requests stuck items.
 
+
+## 2.0.1 (2026-10-29): renamed to Download Unstuck, tested in game by the user ("проверил. все работает.")
+- Display name Download Unstuck everywhere (mod.info name, options page, UI strings, READMEs, Steam EN/RU, cover).
+  Kept `HostUnstuck`: mod id, folder, jar, Java package, Lua global, `HostUnstuck_server.ini` (no re-enable, no ZB prompt).
+- GitHub repo renamed druidqwerty/HostUnstuck -> DownloadUnstuck (old URL redirects); release v2.0.1 (Latest),
+  DownloadUnstuck_2.0.1.zip sha256 765408d1… verified anonymously. Jar = tested 2.0.0 build f884bfb8 (dist jar replaced
+  after build.sh; tests green: SimTest ALL OK, SelfTest OK, Lua 15/15).
+- Steam 3829163351: content + EN by wsupload, EN/RU text by wsdesc; public (visibility 0), title and 2.0.1 checked on
+  both language pages. "My mods" lists renamed on SmoothRide, ZombieSync, Tripping Zombies MP Fix, Wandering Hordes
+  Save Trim (Steam EN/RU via wsdesc + GitHub READMEs pushed).
+- No logs of the user's test on this PC (console.txt last written 2026-10-28 01:58), so no speed numbers on the pages.
+
 ## 2.0.0 published (2026-10-29), still NOT run in the game
 
 User: "публикуй" (explicit, before the in-game test). Steam Workshop item **3829163351** created with wsupload (public,
