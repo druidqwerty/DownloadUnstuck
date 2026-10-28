@@ -5,6 +5,16 @@ server downloads Workshop items. 1.0 (Lua): watches the counter, restarts the se
 stalls, readable status (RU arrives garbled from the server process), the item being downloaded, an honest bar.
 2.0 (Java, ZombieBuddy): replaces the server's download loop with a parallel one that re-requests stuck items.
 
+## 2.0.0 published (2026-10-29), still NOT run in the game
+
+User: "публикуй" (explicit, before the in-game test). Steam Workshop item **3829163351** created with wsupload (public,
+visibility 0 checked anonymously), EN+RU pages via wsdesc; the pages' "Live test TODO" and "Tested on one PC" lines were
+replaced by "Status: experimental, not yet tested in a real hosting session". GitHub v2.0.0 Latest (same zip as rc2,
+sha256 7afac16a…). "My mods" now lists all five published mods on every Steam page and README (incl. Tripping Zombies MP
+Fix 3829034899, Wandering Hordes Save Trim 3829140377). New user rule: required mods go into the Steam page's Required
+items (`requires.txt` + `wsdesc.py --deps`); Host Unstuck has none (ZombieBuddy optional). Next: the in-game test, then
+replace the Status text with results on Steam and GitHub.
+
 ## 2.0.0-rc2 (2026-10-29): review before the first in-game run, offline tests green, NOT run in the game
 
 User (2026-10-29): "Проверяй надо ли доделать или улучшить HostUnstuck. если надо, то делай". The game has not run
