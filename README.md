@@ -21,7 +21,7 @@ Client-side. Enable it in the **main-menu** mod list (Mods) and restart the game
 
 <p align="center"><a href="https://boosty.to/lrgpp"><img src="docs/banner.png" alt="LrgPP mods on Boosty" width="640"></a></p>
 
-Free and open source. Almost all of the code is written by an AI; the subscription, the testing and the time are mine. If the mod made your game better: [support on Boosty](https://boosty.to/lrgpp).
+Free and open source. The code is written by an AI; the direction, the testing and the time are mine. If the mod made your game better: [support on Boosty](https://boosty.to/lrgpp).
 
 ## How it works
 **Lua part (the watchdog).** The Host screen (`CoopOptionsScreen.lua`) starts a separate server process and receives its status lines through the `OnCoopServerMessage` event. The server (`GameServerWorkshopItems.Install`) checks the items of the server's `WorkshopItems` list in order and downloads missing or updated ones one at a time, polling Steam every 100 ms with no timeout and no retry. When Steam stalls, nothing ever happens again. The mod wraps the screen's message handler and its Start/Stop buttons: it parses the counter from the status text (the numbers survive the garbling), knows which item is next from the server's list, asks Steam for the titles and sizes through the client, and when the counter is stuck it calls the same `CoopServer:abort()` and `onStartButtonDown()` the buttons use.
@@ -43,7 +43,7 @@ It does not make the download faster: the game-server download path has about 4 
 - **2.0.0-rc1** (2026-10-28): Java part (a parallel download loop through ZombieBuddy, removed in 2.0.2); 1.0 Lua watchdog.
 
 ## Please note
-- This mod was made 100% with AI.
+- The code is written by an AI, not by a human.
 - It was made only for playing with a friend.
 - Tested on one PC, hosting from the main menu.
 
