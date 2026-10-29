@@ -53,6 +53,7 @@ It does not make the download faster: the game-server download path has about 4 
 - [Tripping Zombies MP Fix](https://steamcommunity.com/sharedfiles/filedetails/?id=3829034899) — the same Tripping Zombies trips for every player.
 - [Wandering Hordes Performance Fix](https://steamcommunity.com/sharedfiles/filedetails/?id=3829140377) — no save freezes and no client lag from Wandering Hordes.
 - **Download Unstuck** — un-sticks the Workshop download when hosting from the menu (this mod).
+- [A-Life: Reactive Survivors](https://steamcommunity.com/sharedfiles/filedetails/?id=3829332775) — A-Life NPCs fight back before the bite (test version).
 
 ## License
 MIT License — see LICENSE file.

@@ -166,6 +166,8 @@ SelfTest (JVM самой игры, запущенная так, как экра�
   https://steamcommunity.com/sharedfiles/filedetails/?id=3829140377
 * Download Unstuck — лечит зависание загрузки мастерской при запуске
   своего сервера (этот мод).
+* A-Life: Reactive Survivors — NPC из A-Life отбиваются до укуса (тестовая версия):
+  https://steamcommunity.com/sharedfiles/filedetails/?id=3829332775
 
 Важно
 -----
