@@ -4,7 +4,7 @@
 
 **Un-sticks the "Host" screen of Project Zomboid (Build 42.21+) when the co-op server hangs while downloading Workshop mods.**
 
-> Status: 2.0.2, fixes a server crash of 2.0.0/2.0.1 with ZombieBuddy (see Changes). The Lua watchdog was tested in a real hosting session; the fixed Java loop passed the offline tests and is waiting for its in-game check. Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3829163351 . If something goes wrong, turn off "Java download loop on the hosted server" in the options and open an issue with `Zomboid/console.txt` and `coop-console.txt`.
+> Status: 2.0.2, fixes a server crash of 2.0.0/2.0.1 with ZombieBuddy (see Changes). Tested in a real hosting session (2026-10-29, 308-item modpack hosted from the menu with ZombieBuddy, mods being downloaded and updated): the server reached the world. Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3829163351 . If something goes wrong, turn off "Java download loop on the hosted server" in the options and open an issue with `Zomboid/console.txt` and `coop-console.txt`.
 
 When you host a game from the main menu with a big mod list, the server process first downloads every Workshop item into its own folder. With a few hundred mods this takes a long time, and sometimes it simply stops: the status stays on "Downloaded 259 of 308" (in Russian it shows as "????????? 259 ?? 308") forever. The only cure is to press Stop and then Start again; the new server process re-checks the installed items in a few seconds and continues from the stuck one.
 
