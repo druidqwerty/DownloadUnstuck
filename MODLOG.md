@@ -7,6 +7,12 @@ stalls, readable status (RU arrives garbled from the server process), the item b
 
 
 
+
+## 2.0.2 RELEASED (2026-10-29): user: "дошел до загрузки. работает." (308 mods, downloads/updates, screenshot at 158/308)
+Steam 3829163351 content (wsupload) + EN/RU (wsdesc), user's Host-screen screenshot added (`wsdesc --screenshots`,
+staging `screenshots/`). GitHub v2.0.2 Latest (was pre-release), READMEs "tested". "speeds up"/"ускоряет" removed from
+the Download Unstuck line of every My mods list (5 Steam items EN/RU + 4 repos). Boosty post BOOSTY_2.0.2.md queued.
+
 ## 2.0.2 (2026-10-29 09:xx): server crash fix, offline tests green, NOT yet run in the game
 User: "при запуске сервера. terminated и выдает ошибку по моду". Logs (console.txt / coop-console.txt 08:55, two launches):
 - `Workshop: [HostUnstuck] installed but timeUpdated does not match` for 3827367565 (SmoothRide) and 3826650541, then
