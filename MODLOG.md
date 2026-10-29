@@ -8,6 +8,12 @@ stalls, readable status (RU arrives garbled from the server process), the item b
 
 
 
+## Steam Required items 2026-10-29 10:55 (Bob): ZombieBuddy listed again
+Ivan's rule (10:52): optional dependencies go to Steam "Required items" too, and the text calls them "optional, but
+recommended for the full experience" / «опционально, но для полноценного опыта рекомендуется». requires.txt lists
+3619862853 again (`wsdesc.py --deps`: added), Steam EN/RU Requirements line + README.md/README_RU.txt reworded.
+mod.info `require=` unchanged: ZombieBuddy stays optional in the game (the audit below had removed the Steam dep).
+
 ## Text audit 2026-10-29 (Bob, after 2.0.2): fixed live, two in-mod texts left for the next release
 - Steam: "Required items" listed ZombieBuddy although it is optional (removed with `wsdesc.py --remove-dep=3619862853`);
   EN/RU pages still said ZombieBuddy "makes the download faster" and told users to turn off "Parallel Workshop downloads"
