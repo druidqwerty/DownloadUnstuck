@@ -155,8 +155,8 @@ dist/HostUnstuck и гоняет три офлайн-теста: SimTest (сер
   https://steamcommunity.com/sharedfiles/filedetails/?id=3827946115
 * Tripping Zombies MP Fix — одинаковые падения Tripping Zombies у всех игроков:
   https://steamcommunity.com/sharedfiles/filedetails/?id=3829034899
-* Wandering Hordes Save Trim — без подвисаний сервера при сохранении из-за карты
-  стен Wandering Hordes:
+* Wandering Hordes Performance Fix — без подвисаний сохранения и лагов клиента
+  из-за Wandering Hordes:
   https://steamcommunity.com/sharedfiles/filedetails/?id=3829140377
 * Download Unstuck — лечит зависание и ускоряет загрузку мастерской при запуске
   своего сервера (этот мод).
