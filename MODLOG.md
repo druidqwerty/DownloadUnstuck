@@ -8,6 +8,20 @@ stalls, readable status (RU arrives garbled from the server process), the item b
 
 
 
+## Text audit 2026-10-29 (Bob, after 2.0.2): fixed live, two in-mod texts left for the next release
+- Steam: "Required items" listed ZombieBuddy although it is optional (removed with `wsdesc.py --remove-dep=3619862853`);
+  EN/RU pages still said ZombieBuddy "makes the download faster" and told users to turn off "Parallel Workshop downloads"
+  (setting gone in 2.0.2) -> fixed; overhead "about 4 s" like the README. Cover regenerated (`hostunstuck-preview/`):
+  "STUCK FOR 41 MIN" was invented (the logged hang was 41 s; the pages say "forever") and four arrows were "four parallel
+  downloads" -> "STUCK FOREVER", restart icon + one arrow; uploaded with `wsdesc.py --preview`, docs/preview.png pushed.
+- GitHub: repo description no longer says "speeds up"; releases 2.0.1/2.0.0/rc1/rc2 got a "use 2.0.2" warning (EN/RU),
+  2.0.1/2.0.0 titles say they crash with ZombieBuddy; README "100% with AI" vs "almost all" made one wording.
+- Boosty: 2.0.1 post (d5bff520) got a correction at the top and no longer claims "everything works" / 4 items at once;
+  2.0.2 post (798ce15b) bullets were one paragraph (source used "•" lines) -> "- " lines, re-sent with PUT /post/{id}.
+- NEXT RELEASE: the in-game tooltip `UI_HU_Opt_StallSeconds_tt` (EN+RU) still says the server "requests the stuck item
+  again" and then restarts after 20 s; 2.0.2 cannot re-request (ZNetJNI allows one DownloadItem). `mod.info`
+  versionMin=42.0 while every page says 42.21+. No poster.png/icon.png in 42/ (no picture in the in-game mod list).
+
 ## 2.0.2 RELEASED (2026-10-29): user: "дошел до загрузки. работает." (308 mods, downloads/updates, screenshot at 158/308)
 Steam 3829163351 content (wsupload) + EN/RU (wsdesc), user's Host-screen screenshot added (`wsdesc --screenshots`,
 staging `screenshots/`). GitHub v2.0.2 Latest (was pre-release), READMEs "tested". "speeds up"/"ускоряет" removed from
