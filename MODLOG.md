@@ -6,6 +6,28 @@ stalls, readable status (RU arrives garbled from the server process), the item b
 2.0 (Java, ZombieBuddy): replaces the server's download loop with a parallel one that re-requests stuck items.
 
 
+
+## 2.0.2 (2026-10-29 09:xx): server crash fix, offline tests green, NOT yet run in the game
+User: "при запуске сервера. terminated и выдает ошибку по моду". Logs (console.txt / coop-console.txt 08:55, two launches):
+- `Workshop: [HostUnstuck] installed but timeUpdated does not match` for 3827367565 (SmoothRide) and 3826650541, then
+  `java.lang.RuntimeException: download in progress already at SteamWorkshop.n_DownloadItem (Native Method)` from
+  `Downloader.check` -> the parallel loop threw, the one-at-a-time fallback threw the same (the first request was still
+  in progress natively) -> Install returned false -> server exit, "Загружено 0 из 308", terminated. Lua relaunched once,
+  same again. **The game's ZNetJNI wrapper allows one DownloadItem at a time and throws on any second request, even for
+  the same item.** So parallel downloads and in-process re-requests are impossible. The 2.0.1 "works" test had nothing to
+  download, so it never hit this.
+- Also `[HostUnstuck] could not read the server's Workshop list: attempted index: getOptionByName of non-table: null`:
+  `ServerSettings:getServerOptions()` is nil until `loadFiles()` (vanilla ServerSettingsScreen calls it).
+Fix: `Backend.download` returns DL_OK/DL_FAIL/DL_BUSY (SteamBackend catches the "in progress" RuntimeException); the
+loop is always one at a time with high priority (= vanilla); BUSY with nothing of ours pending = a leftover download,
+adopted as PENDING; kick/push on BUSY = no-op (log), the Lua watchdog restarts the process (stallSeconds + 20 s, or 30 s
+of heartbeat silence). Lua: loadFiles() before getServerOptions(), "Downloads at the same time" slider removed, tickbox
+renamed "Java download loop on the hosted server", ini parallel=1. SimTest fake Steam refuses concurrent requests like
+ZNetJNI (new scenarios: old ini with parallel=4, leftover download, dead item killed by the watchdog); Lua stub returns
+nil options until loadFiles. build.sh: SimTest ALL OK, SelfTest OK, Lua 15/15. Jar d80cab3f, installed to
+Zomboid/mods/HostUnstuck AND Zomboid/Workshop/HostUnstuck/Contents (the game loads the jar from the staging copy).
+Docs/Steam drafts rewritten (no parallel claims). Steam NOT uploaded (user rule: only after the in-game test).
+
 ## 2.0.1 (2026-10-29): renamed to Download Unstuck, tested in game by the user ("проверил. все работает.")
 - Display name Download Unstuck everywhere (mod.info name, options page, UI strings, READMEs, Steam EN/RU, cover).
   Kept `HostUnstuck`: mod id, folder, jar, Java package, Lua global, `HostUnstuck_server.ini` (no re-enable, no ZB prompt).

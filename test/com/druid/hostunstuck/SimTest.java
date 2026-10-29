@@ -32,6 +32,11 @@ public final class SimTest {
         long bytesPerSec = 1_500_000;
         /** A Steam that starts only high-priority requests (the unknown the first in-game test answers). */
         boolean lowPriorityNeverStarts;
+        /** The real game's Steam wrapper: one download at a time, any other request is refused. */
+        boolean nativeSingle = true;
+        int busyRefusals;
+        /** Emulates the host's watchdog killing the server process. */
+        long killAtMs = Long.MAX_VALUE;
         final Map<Long, Entry> entries = new HashMap<>();
         final Deque<Entry> queue = new ArrayDeque<>();
         final List<Entry> active = new ArrayList<>();
@@ -88,10 +93,15 @@ public final class SimTest {
         }
 
         @Override
-        public boolean download(long id, boolean highPriority) {
+        public int download(long id, boolean highPriority) {
             Entry e = entries.get(id);
+            // like ZNetJNI's n_DownloadItem: any request while a download runs throws "download in progress already"
+            if (nativeSingle && (!queue.isEmpty() || !active.isEmpty())) {
+                busyRefusals++;
+                return Downloader.DL_BUSY;
+            }
             if (e.refuse) {
-                return false;
+                return Downloader.DL_FAIL;
             }
             e.downloads++;
             if (highPriority && e.hangsUntilKick) {
@@ -111,7 +121,7 @@ public final class SimTest {
                 queue.remove(e);
                 queue.addFirst(e);
             }
-            return true;
+            return Downloader.DL_OK;
         }
 
         @Override
@@ -127,6 +137,9 @@ public final class SimTest {
 
         @Override
         public void runLoop() {
+            if (clock > killAtMs) {
+                throw new Killed();
+            }
             List<Entry> finished = new ArrayList<>();
             for (Entry e : active) {
                 if (e.hangsUntilKick || e.hangsForever) {
@@ -187,6 +200,9 @@ public final class SimTest {
         public void log(String s) {
             log.add(s);
         }
+    }
+
+    static final class Killed extends RuntimeException {
     }
 
     static final class Recorder implements Downloader.Reporter {
@@ -283,63 +299,44 @@ public final class SimTest {
         checkMonotonic(r);
         check(r.seconds() < 5, "finished in " + r.seconds() + " s");
 
-        System.out.println("fresh download, Steam handles 4 at once: parallel is faster than one by one");
-        Run par = new Run().items(300, 1_000_000, false).go();
-        Run seq = new Run().items(300, 1_000_000, false);
-        seq.cfg.maxParallel = 1;
-        seq.go();
-        check(par.result && seq.result, "both ok");
-        checkMonotonic(par);
-        check(par.dl.kicks() == 0 && seq.dl.kicks() == 0, "no re-requests in a healthy run");
-        check(par.dl.pushes() == 0 && seq.dl.pushes() == 0 && par.dl.parallel() == 4, "no pushes, still x4 at the end");
-        check(par.seconds() * 3 < seq.seconds(), "parallel " + par.seconds() + " s vs sequential " + seq.seconds() + " s");
-        check(seq.steam.entries.values().stream().allMatch(e -> e.downloads == 1), "sequential: every item requested once");
-        check(par.rec.infos.size() > 10 && par.rec.infos.get(3).startsWith("v=2;done="), "info lines sent: " + par.rec.infos.get(3));
+        System.out.println("fresh download: one at a time like the game, never refused, no re-requests");
+        Run seq = new Run().items(300, 1_000_000, false).go();
+        check(seq.result, "ok");
+        checkMonotonic(seq);
+        check(seq.steam.busyRefusals == 0, "no request while another runs (busy refusals: " + seq.steam.busyRefusals + ")");
+        check(seq.steam.entries.values().stream().allMatch(e -> e.downloads == 1), "every item requested once");
+        check(seq.dl.kicks() == 0 && seq.dl.pushes() == 0 && seq.dl.parallel() == 1, "no kicks, no pushes, x1");
+        check(seq.rec.infos.size() > 10 && seq.rec.infos.get(3).startsWith("v=2;done="), "heartbeat lines sent: " + seq.rec.infos.get(3));
 
-        System.out.println("Steam serialises the queue: no false stalls with 4 requested at once");
-        Run ser = new Run().items(120, 2_000_000, false);
-        ser.steam.concurrency = 1;
-        ser.go();
-        check(ser.result, "ok");
-        check(ser.dl.kicks() == 0, "no re-requests while another download makes progress");
-        check(ser.dl.pushes() == 0, "no pushes: Steam starts the next queued item within its usual setup time");
-        checkMonotonic(ser);
+        System.out.println("old settings file with parallel=4: still one at a time, no refusals");
+        Run old = new Run().items(40, 1_000_000, false);
+        old.cfg.maxParallel = 4;
+        old.go();
+        check(old.result && old.steam.busyRefusals == 0 && old.dl.parallel() == 1, "ok, x1, refusals " + old.steam.busyRefusals);
 
-        System.out.println("one item hangs in DownloadPending until it is requested again");
-        Run hang = new Run().items(60, 1_000_000, false);
-        hang.entry(20).hangsUntilKick = true;
-        hang.go();
-        check(hang.result, "ok");
-        check(hang.dl.kicks() == 0 && hang.dl.pushes() == 1 && hang.entry(20).downloads == 2,
-                "one push (8 s, before any 40 s re-request) for the hung item: kicks " + hang.dl.kicks() + ", pushes " + hang.dl.pushes());
-        check(hang.rec.failed.isEmpty(), "no failure reported");
-        checkMonotonic(hang);
+        System.out.println("a download left over in the process (first loop threw): adopted, not a crash");
+        Run orphan = new Run().items(20, 1_000_000, true);
+        orphan.entry(2).installedStamp = 999;
+        orphan.steam.download(orphan.items.get(2).id, true); // the leftover request of the loop that threw
+        orphan.go();
+        check(orphan.result, "ok");
+        check(orphan.steam.busyRefusals == 1 && orphan.entry(2).installedStamp == 1000, "one refusal, the item still installed");
+        checkMonotonic(orphan);
 
-        System.out.println("Steam starts only high-priority requests: pushes, then one at a time with high priority");
-        Run lazy = new Run().items(60, 1_000_000, false);
-        lazy.steam.lowPriorityNeverStarts = true;
-        lazy.go();
-        Run lazySeq = new Run().items(60, 1_000_000, false);
-        lazySeq.steam.lowPriorityNeverStarts = true;
-        lazySeq.cfg.maxParallel = 1;
-        lazySeq.go();
-        check(lazy.result && lazySeq.result, "both ok");
-        check(lazy.dl.parallel() == 1 && lazy.dl.pushes() >= Downloader.PUSHES_TO_SEQUENTIAL && lazy.dl.pushes() <= 8,
-                "switched to one at a time after " + lazy.dl.pushes() + " pushes");
-        check(lazy.dl.kicks() == 0 && lazySeq.dl.pushes() == 0, "no 40 s re-requests; the sequential run needs no pushes");
-        check(lazy.seconds() < lazySeq.seconds() + 60, "lazy Steam costs < 1 min over one-by-one: " + lazy.seconds() + " s vs " + lazySeq.seconds() + " s");
-        checkMonotonic(lazy);
-
-        System.out.println("an item never moves: re-requests, then the game's reinstall path, then the step fails");
+        System.out.println("an item never moves: no re-request possible, the loop waits, the host's watchdog kills the server");
         Run dead = new Run().items(30, 1_000_000, false);
         dead.entry(5).hangsForever = true;
-        dead.go();
-        check(!dead.result, "run returns false (the server stops, the client restarts it)");
-        check(dead.rec.failed.size() == 3 && dead.rec.failed.stream().allMatch(id -> id == dead.items.get(5).id), "the failed item reported 3 times");
-        check(dead.rec.reinstalls == 2 && dead.steam.deletes == 2, "two reinstall rounds");
-        check(dead.dl.kicks() == 6, "2 re-requests per try: " + dead.dl.kicks());
-        long stallBudget = dead.cfg.stallSeconds * 3L * 3L;
-        check(dead.seconds() < stallBudget + 90, "gave up within " + dead.seconds() + " s (3 tries x 3 stall periods after the other items)");
+        dead.steam.killAtMs = 300_000;
+        boolean killed = false;
+        try {
+            dead.go();
+        } catch (Killed k) {
+            killed = true;
+        }
+        check(killed, "the loop was still waiting when the process was killed (no crash, no false give-up)");
+        check(dead.rec.failed.isEmpty() && dead.steam.deletes == 0, "nothing reported failed, no folder deleted");
+        check(dead.rec.progress.get(dead.rec.progress.size() - 1)[0] == 5, "the counter stopped at 5 (what the watchdog sees)");
+        check(dead.rec.infos.size() > 250, "heartbeat kept coming while stuck (" + dead.rec.infos.size() + " lines)");
 
         System.out.println("installed but updated on the Workshop: folder removed and downloaded again");
         Run upd = new Run().items(10, 1_000_000, true);

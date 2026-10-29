@@ -1,11 +1,11 @@
 name=Download Unstuck [B42]
 id=HostUnstuck
 author=druid
-description=Unsticks the "Host" screen when the co-op server downloads Workshop mods and hangs on "Downloaded X of Y": it watches the counter and, when it stops moving, presses Stop and Start for you (the server continues from the same item). Shows a readable status instead of "????????? 259 ?? 308", the item being downloaded, and an honest progress bar. With ZombieBuddy (optional) the server you host also downloads several items at once instead of one after another and re-requests a stuck download. Client-side; enable it in the main-menu mod list. Nothing is needed for other players.
+description=Unsticks the "Host" screen when the co-op server downloads Workshop mods and hangs on "Downloaded X of Y": it watches the counter and, when it stops moving, presses Stop and Start for you (the server continues from the same item). Shows a readable status instead of "????????? 259 ?? 308", the item being downloaded, and an honest progress bar. With ZombieBuddy (optional) the server you host also reports its download progress every second, so a slow big download is not taken for a stall and a server frozen inside Steam is restarted after 30 s. Client-side; enable it in the main-menu mod list. Nothing is needed for other players.
 url=https://github.com/druidqwerty/DownloadUnstuck
 category=features
 versionMin=42.0
-modversion=2.0.1
+modversion=2.0.2
 javaJarFile=media/java/HostUnstuck.jar
 javaPkgName=com.druid.hostunstuck
 ZBVersionMin=2.3.4

@@ -45,8 +45,18 @@ public final class SteamBackend implements Downloader.Backend, ISteamWorkshopCal
     }
 
     @Override
-    public boolean download(long id, boolean highPriority) {
-        return SteamWorkshop.instance.DownloadItem(id, highPriority, this);
+    public int download(long id, boolean highPriority) {
+        try {
+            return SteamWorkshop.instance.DownloadItem(id, highPriority, this) ? Downloader.DL_OK : Downloader.DL_FAIL;
+        } catch (RuntimeException e) {
+            // ZNetJNI throws "download in progress already" for any request while one download runs
+            String m = String.valueOf(e.getMessage());
+            if (m.contains("in progress")) {
+                return Downloader.DL_BUSY;
+            }
+            log("DownloadItem(" + id + ") threw " + e);
+            return Downloader.DL_FAIL;
+        }
     }
 
     @Override

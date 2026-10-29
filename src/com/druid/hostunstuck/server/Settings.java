@@ -11,7 +11,7 @@ import java.nio.file.Path;
  */
 public final class Settings {
     /** Downloads requested from Steam at the same time. 0 = the client does not inject the Java part at all. */
-    public int maxParallel = 4;
+    public int maxParallel = 1; // kept for old ini files; the loop always runs one download at a time
     /** No byte progress from any download for this long -> the oldest download is requested again. */
     public int stallSeconds = 40;
     /** Re-requests per item before it is treated as failed (then the game's own reinstall path applies). */

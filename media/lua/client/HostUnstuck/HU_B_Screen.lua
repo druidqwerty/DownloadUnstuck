@@ -44,7 +44,14 @@ HU.hooks.loadItems = function(serverName)
     for i = 1, mgr:getSettingsCount() do
         local settings = mgr:getSettingsByIndex(i - 1)
         if settings:getName() == serverName then
-            local str = settings:getServerOptions():getOptionByName("WorkshopItems"):getValue() or ""
+            -- the options are read from the ini only on demand (the server settings screen calls loadFiles too)
+            local so = settings:getServerOptions()
+            if not so then
+                settings:loadFiles()
+                so = settings:getServerOptions()
+            end
+            local opt = so and so:getOptionByName("WorkshopItems")
+            local str = (opt and opt:getValue()) or ""
             for _, id in ipairs(luautils.split(str, ";")) do
                 id = string.gsub(id, "%s", "")
                 if id ~= "" then table.insert(ids, id) end
@@ -70,7 +77,7 @@ HU.hooks.writeSettings = function()
     if not w then return end
     local parallel = 0
     if HU.settings.parallel and not HU.javaDisabled then
-        parallel = tonumber(HU.settings.maxParallel) or HU.defaults.maxParallel
+        parallel = 1 -- the game's Steam wrapper allows one download at a time
     end
     w:write("parallel=" .. HU.fmtInt(parallel) .. "\n")
     w:write("stallSeconds=" .. HU.fmtInt(HU.settings.stallSeconds or HU.defaults.stallSeconds) .. "\n")

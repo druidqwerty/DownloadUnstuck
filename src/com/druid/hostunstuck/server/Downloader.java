@@ -3,20 +3,22 @@ package com.druid.hostunstuck.server;
 import java.util.List;
 
 /**
- * Workshop installer for the server process. Same job as the game's GameServerWorkshopItems.Install (42.21), with two
- * differences: several items are requested from Steam at once (normal priority) instead of strictly one after another,
- * and when no download makes any progress for a while the oldest one is requested again instead of waiting forever.
- * If Steam leaves normal-priority requests waiting, the oldest is pushed with high priority, and when that is needed for
- * most items the loop goes on one at a time with high priority like the game (see pushOldest). Everything
- * else (item states, failed items, reinstall tries, status lines) follows the game's loop so the Host screen and the
- * Lua side see what they expect. No game classes here: the loop runs in an offline simulation (test/SimTest.java).
+ * Workshop installer for the server process. Same job as the game's GameServerWorkshopItems.Install (42.21): one item
+ * at a time with high priority, because the game's Steam wrapper (ZNetJNI SteamWorkshop.n_DownloadItem) refuses any
+ * DownloadItem while a download is in progress ("download in progress already", seen in the first real run on
+ * 2026-10-29) - so neither parallel downloads nor re-requesting a stuck item are possible. What this loop adds: it
+ * never crashes on that refusal (it adopts a download left over in the process), it reports byte progress and a
+ * heartbeat line ("hostunstuck@...") every second, so the host's watchdog sees a slow download as alive and a frozen
+ * server (no line) at once, and restarts the process when a download is stuck. Item states, failed items, reinstall
+ * tries and status lines follow the game's loop. No game classes here: the loop runs in an offline simulation (test/SimTest.java).
  */
 public final class Downloader {
-    public static final String VERSION = "2.0.0";
+    public static final String VERSION = "2.0.2";
     /** Reinstall attempts per item before the whole step fails, as in the game. */
     public static final int MAX_TRIES = 3;
     /** Pushes (see pushOldest) after which, if they are needed for most downloads, the loop goes one at a time. */
     public static final int PUSHES_TO_SEQUENTIAL = 3;
+    public static final int DL_FAIL = 0, DL_OK = 1, DL_BUSY = 2;
 
     /** ISteamUGC EItemState flags (SteamWorkshopItem.ItemState in the game). */
     public static final long ST_NONE = 0, ST_INSTALLED = 4, ST_NEEDS_UPDATE = 8, ST_DOWNLOADING = 16, ST_DOWNLOAD_PENDING = 32;
@@ -29,7 +31,8 @@ public final class Downloader {
         String installFolder(long id);
         boolean folderExists(String folder);
         void deleteFolder(String folder);
-        boolean download(long id, boolean highPriority);
+        /** {@link #DL_OK}, {@link #DL_FAIL} (Steam said no) or {@link #DL_BUSY} (another download is in progress). */
+        int download(long id, boolean highPriority);
         /** out[0] = bytes downloaded, out[1] = bytes total; false when Steam has no download info for the item. */
         boolean downloadInfo(long id, long[] out);
         /** Pumps Steam callbacks: onDownloaded / onNotDownloaded are called from inside. */
@@ -148,7 +151,7 @@ public final class Downloader {
         lastGlobalProgress = t0;
         lastActivity = t0;
         long lastInfo = Long.MIN_VALUE / 2;
-        parallel = Math.max(1, cfg.maxParallel);
+        parallel = 1; // the game's Steam wrapper allows one download at a time (see the class comment)
         rep.progress(0, n);
         while (true) {
             be.runLoop();
@@ -242,9 +245,20 @@ public final class Downloader {
         }
         String folder = be.installFolder(it.id);
         if (st == ST_NONE || (st & ST_NEEDS_UPDATE) != 0 || folder == null || !be.folderExists(folder)) {
-            if (be.download(it.id, highPriority)) {
+            int r = be.download(it.id, true);
+            if (r == DL_BUSY) {
+                for (Item other : items) {
+                    if (other.state == State.PENDING) {
+                        return; // ours is in flight; this one waits for its turn
+                    }
+                }
+                // a download left over in this process (e.g. by a loop that threw): it is most likely this item, wait for it
+                be.log("Steam is busy with a download we did not start, waiting for it as ID=" + it.id);
+                r = DL_OK;
+            }
+            if (r == DL_OK) {
                 it.state = State.PENDING;
-                it.promoted = highPriority;
+                it.promoted = true;
                 it.startedAt = t;
                 it.lastPollAt = t;
                 it.bytes = -1;
@@ -310,7 +324,8 @@ public final class Downloader {
         pushes++;
         be.log("Steam works on none of our downloads for " + cfg.promoteMs / 1000 + " s, requesting ID=" + oldest.id
                 + " with high priority (push " + pushes + ")");
-        if (!be.download(oldest.id, true)) {
+        int r = be.download(oldest.id, true);
+        if (r == DL_FAIL) {
             oldest.error = "DownloadItemFalse";
             oldest.state = State.FAIL;
             return;
@@ -334,6 +349,18 @@ public final class Downloader {
             return;
         }
         lastGlobalProgress = t;
+        int r = be.download(oldest.id, true);
+        if (r == DL_BUSY) {
+            // the only possible answer for an item Steam still holds: the host's watchdog restarts the server
+            be.log("no progress for " + cfg.stallSeconds + " s on ID=" + oldest.id
+                    + "; Steam still holds it and cannot be asked again, waiting for the host to restart the server");
+            return;
+        }
+        if (r == DL_FAIL) {
+            oldest.error = "DownloadItemFalse";
+            oldest.state = State.FAIL;
+            return;
+        }
         if (oldest.kicks >= cfg.maxKicks) {
             be.log("no progress for " + cfg.stallSeconds + " s after " + oldest.kicks + " re-requests, giving up on ID=" + oldest.id);
             oldest.error = "stalled";
@@ -342,12 +369,7 @@ public final class Downloader {
         }
         oldest.kicks++;
         kicks++;
-        be.log("no progress for " + cfg.stallSeconds + " s, requesting ID=" + oldest.id + " again (" + oldest.kicks + "/" + cfg.maxKicks + ")");
-        if (!be.download(oldest.id, true)) {
-            oldest.error = "DownloadItemFalse";
-            oldest.state = State.FAIL;
-            return;
-        }
+        be.log("no progress for " + cfg.stallSeconds + " s, requested ID=" + oldest.id + " again (" + oldest.kicks + "/" + cfg.maxKicks + ")");
         oldest.promoted = true;
         lastActivity = t;
     }

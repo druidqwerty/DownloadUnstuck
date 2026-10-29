@@ -48,7 +48,9 @@ function getServerSettingsManager()
         getSettingsByIndex = function()
             return {
                 getName = function() return "MPMAIN" end,
-                getServerOptions = function() return { getOptionByName = function() return { getValue = function() return table.concat(serverItems, ";") end } end } end,
+                -- like the game: the options are nil until loadFiles() read the ini (first real run, 2026-10-29)
+                getServerOptions = function() if not filesLoaded then return nil end return { getOptionByName = function() return { getValue = function() return table.concat(serverItems, ";") end } end } end,
+                loadFiles = function() filesLoaded = true; return true end,
             }
         end,
     }
@@ -336,7 +338,7 @@ def test_disabled():
     check(lua.eval("calls.launch") == 1, "no relaunch when disabled")
 
 
-def java_info(lua, done, total, active, nbytes, ids, kicks=0, par=4):
+def java_info(lua, done, total, active, nbytes, ids, kicks=0, par=1):
     lua.execute(f"msg('hostunstuck', 'v=2;done={done};total={total};active={active};bytes={nbytes};kicks={kicks};pushes=0;par={par};elapsed=1;ids={ids}')")
 
 
@@ -352,7 +354,7 @@ def test_java_bytes_count_as_progress():
     check(lua.eval("calls.abort") == 0, "no restart in 2 min with the counter stuck but bytes moving")
     check(lua.eval("S().javaActive") == True, "Java mode detected")
     line = lua.eval("HostUnstuck.statusLine()")
-    check("UI_HU_Line_Parallel 4 2" in line and "UI_HU_Line_Downloaded 114.4" in line, "second line shows the parallel info (120e6 B = 114.4 MiB): " + line)
+    check("UI_HU_Line_Parallel 1 2" in line and "UI_HU_Line_Downloaded 114.4" in line, "second line shows the parallel info (120e6 B = 114.4 MiB): " + line)
     check(lua.eval("HostUnstuck.currentItem()") == "3000000010", "current item = first in flight")
     check(lua.eval("HostUnstuck.stallLimitMs()") == 60000, "limit = 40 s + 20 s for the re-request, whatever the size in flight")
     for i in range(55):
@@ -440,7 +442,7 @@ def test_settings_file():
     lua = make_runtime()
     boot(lua)
     text = lua.eval("written.text")
-    check(text == "parallel=4\nstallSeconds=40\nmaxKicks=2\n", "defaults written on Start: " + text.replace("\n", " "))
+    check(text == "parallel=1\nstallSeconds=40\nmaxKicks=2\n", "defaults written on Start: " + text.replace("\n", " "))
     lua.execute("optionsPage.values.parallel.v = false; optionsPage.values.stallSeconds.v = 90; mainMenuFns[1]()")
     text = lua.eval("written.text")
     check(text == "parallel=0\nstallSeconds=90\nmaxKicks=2\n", "options applied and written: " + text.replace("\n", " "))
