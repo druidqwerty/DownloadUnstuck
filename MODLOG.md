@@ -17,6 +17,11 @@
 - Installed and hash-verified in both `Zomboid/mods/HostUnstuck` and Workshop staging `Contents/mods/HostUnstuck`;
   previous copies backed up under `.scratch/backup-before-2.1.1`. Release preparation: README EN/RU, Steam EN/RU
   (6079/7775 UTF-8 bytes), GitHub notes and `BOOSTY_2.1.1.md`.
+- RELEASED 2026-10-31 as a test version: source commit `56e0207` pushed; GitHub v2.1.1 public asset verified
+  anonymously byte-for-byte (19 files, ZIP SHA-256 `10BDB62698558F7175B651ADB65230172E8DB972E9EFF315F69E5287DE6A4F50`);
+  Steam 3829163351 content + EN/RU published (API result=1, visibility=0, fresh time_updated; live EN/RU text checked);
+  Boosty https://boosty.to/lrgpp/posts/99fb2972-f214-4a4c-9b36-93301427d1dc (HTTP 200, published=true,
+  anonymous EN/RU/Workshop checks passed).
 
 ## 2.1.0 (2026-10-31): configurable player-save/network buffer
 - Steam request: an old-B41-style `NetBufferSize` option for heavily modded servers. Verified B41 Workshop 3353695711
