@@ -1,5 +1,21 @@
 # Host Unstuck — MODLOG
 
+## 2.1.0 (2026-10-31): configurable player-save/network buffer
+- Steam request: an old-B41-style `NetBufferSize` option for heavily modded servers. Verified B41 Workshop 3353695711
+  upsizes a save buffer, not bandwidth. B42.21 has a 2 MiB cap in `PlayerDB$PlayerData.set` and a 1 MiB cap in
+  `ServerPlayerDB$NetworkCharacterData`; this feature raises both, without claiming faster Steam downloads.
+- `netBufferSizeMB` (default 64, range 2..1024) added to Lua defaults/options/EN/RU and `HostUnstuck_server.ini`;
+  `Settings` parses and clamps it; `NetworkBufferSize.bytes()` reads it in the hosted server.
+- Server jar shadows `PlayerDB` and `ServerPlayerDB` from the verified B42.21 sources with only the two cap changes.
+  `Inject` now checks SHA-256 for all three replaced classes; a game update disables the Java part safely.
+- Files: savefile classes, `NetworkBufferSize`, `Settings`, `Inject`, `SelfTest`, Lua core/screen/options/translations,
+  Java + Lua tests, `tools/build.sh`, `Downloader.VERSION`, `mod.info` = 2.1.0.
+- Verification on Windows JDK 25: Java SimTest ALL OK (incl. buffer default/bounds); SelfTest OK (all three classes
+  shadowed, all three hashes match, 67108864-byte default); Lua 15/15 (64 MiB default and 128 MiB apply/write).
+  `javac` has only the original decompiler warnings. Full in-game host session still required before publication.
+- Build note: local `bash tools/build.sh` lacks unzip and Windows-path JDK; the same documented build steps were run
+  natively. The script itself only gained the two extra class hashes, no environment-specific workaround.
+
 Goal: PZ B42 client-side mod that fixes the "Host" screen hanging on "Downloaded X of Y" while the co-op
 server downloads Workshop items. 1.0 (Lua): watches the counter, restarts the server (Stop + Start) when it
 stalls, readable status (RU arrives garbled from the server process), the item being downloaded, an honest bar.

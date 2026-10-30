@@ -13,7 +13,7 @@ import java.util.List;
  * tries and status lines follow the game's loop. No game classes here: the loop runs in an offline simulation (test/SimTest.java).
  */
 public final class Downloader {
-    public static final String VERSION = "2.0.2";
+    public static final String VERSION = "2.1.0";
     /** Reinstall attempts per item before the whole step fails, as in the game. */
     public static final int MAX_TRIES = 3;
     /** Pushes (see pushOldest) after which, if they are needed for most downloads, the loop goes one at a time. */

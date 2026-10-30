@@ -13,6 +13,7 @@ local maxRestarts = options:addSlider("maxRestarts", "UI_HU_Opt_MaxRestarts", 1,
 local launchTimeout = options:addSlider("launchTimeout", "UI_HU_Opt_LaunchTimeout", 30, 600, 10, D.launchTimeout, "UI_HU_Opt_LaunchTimeout_tt")
 options:addDescription("UI_HU_Opt_JavaInfo")
 local parallel = options:addTickBox("parallel", "UI_HU_Opt_Parallel", D.parallel, "UI_HU_Opt_Parallel_tt")
+local netBufferSizeMB = options:addSlider("netBufferSizeMB", "UI_HU_Opt_NetBufferSize", 2, 1024, 2, D.netBufferSizeMB, "UI_HU_Opt_NetBufferSize_tt")
 
 local function num(option, default, lo, hi)
     local v = tonumber(option:getValue())
@@ -26,10 +27,12 @@ local function applySettings()
     HU.settings.maxRestarts = num(maxRestarts, D.maxRestarts, 1, 30)
     HU.settings.launchTimeout = num(launchTimeout, D.launchTimeout, 30, 600)
     HU.settings.parallel = parallel:getValue() and true or false
+    HU.settings.netBufferSizeMB = num(netBufferSizeMB, D.netBufferSizeMB, 2, 1024)
     HU.settings.maxParallel = 1
     print("[HostUnstuck] options: enabled=" .. tostring(HU.settings.enabled)
         .. " stallSeconds=" .. HU.settings.stallSeconds .. " maxRestarts=" .. HU.settings.maxRestarts
-        .. " launchTimeout=" .. HU.settings.launchTimeout .. " javaLoop=" .. tostring(HU.settings.parallel))
+        .. " launchTimeout=" .. HU.settings.launchTimeout .. " javaLoop=" .. tostring(HU.settings.parallel)
+        .. " netBufferSizeMB=" .. HU.settings.netBufferSizeMB)
     if HU.hooks.writeSettings then pcall(HU.hooks.writeSettings) end
 end
 

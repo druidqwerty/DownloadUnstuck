@@ -25,6 +25,8 @@ import zombie.ZomboidFileSystem;
 public final class Inject {
     public static final String VERSION = Downloader.VERSION;
     static final String TARGET = "zombie/network/GameServerWorkshopItems.class";
+    static final String PLAYER_DB_TARGET = "zombie/savefile/PlayerDB.class";
+    static final String SERVER_PLAYER_DB_TARGET = "zombie/savefile/ServerPlayerDB.class";
 
     private static Path jar;
     private static String status = "not initialised";
@@ -40,13 +42,11 @@ public final class Inject {
     public static synchronized void init() {
         try {
             jar = Path.of(Inject.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toRealPath();
-            String expected = readResource("vanilla.sha256");
-            String actual = vanillaHash(jar);
-            if (actual == null) {
-                status = "the game's GameServerWorkshopItems.class was not found: parallel downloads off";
-            } else if (expected == null || !actual.equalsIgnoreCase(expected)) {
-                status = "the game's download code changed since this build (" + actual.substring(0, 12) + " vs "
-                        + (expected == null ? "?" : expected.substring(0, 12)) + "): parallel downloads off";
+            if (!matchesBuild(jar, TARGET, "vanilla.sha256")) {
+                status = "the game's download code changed since this build: Java part off";
+            } else if (!matchesBuild(jar, PLAYER_DB_TARGET, "playerdb.sha256")
+                    || !matchesBuild(jar, SERVER_PLAYER_DB_TARGET, "serverplayerdb.sha256")) {
+                status = "the game's player-save code changed since this build: Java part off";
             } else {
                 ready = true;
                 status = "ready " + VERSION;
@@ -57,10 +57,20 @@ public final class Inject {
         log(status + " (jar " + jar + ")");
     }
 
+    private static boolean matchesBuild(Path ownJar, String target, String resource) throws IOException {
+        String expected = readResource(resource);
+        String actual = vanillaHash(ownJar, target);
+        return expected != null && actual != null && expected.equalsIgnoreCase(actual);
+    }
+
     /** SHA-256 of the game's own copy of the class, i.e. the one that is not inside our jar. */
     public static String vanillaHash(Path ownJar) throws IOException {
+        return vanillaHash(ownJar, TARGET);
+    }
+
+    public static String vanillaHash(Path ownJar, String target) throws IOException {
         String own = ownJar == null ? null : ownJar.toUri().toString().replace("file:///", "file:/");
-        Enumeration<URL> urls = ClassLoader.getSystemResources(TARGET);
+        Enumeration<URL> urls = ClassLoader.getSystemResources(target);
         while (urls.hasMoreElements()) {
             URL u = urls.nextElement();
             String s = u.toString().replace("file:///", "file:/");

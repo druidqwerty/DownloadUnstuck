@@ -22,6 +22,8 @@ public final class Settings {
     public int pollMs = 100;
     /** How often the structured "hostunstuck" status line is sent to the host's screen, ms. */
     public int infoMs = 1000;
+    /** Maximum player-save / network-character buffer, MiB (vanilla uses 2 and 1 respectively). */
+    public int netBufferSizeMB = 64;
 
     public static Settings load(Path file) {
         Settings s = new Settings();
@@ -56,6 +58,7 @@ public final class Settings {
             case "promoteMs" -> promoteMs = clamp(v, 1000, 120000);
             case "pollMs" -> pollMs = clamp(v, 20, 2000);
             case "infoMs" -> infoMs = clamp(v, 200, 10000);
+            case "netBufferSizeMB" -> netBufferSizeMB = clamp(v, 2, 1024);
             default -> {
             }
         }
@@ -68,6 +71,7 @@ public final class Settings {
     @Override
     public String toString() {
         return "parallel=" + maxParallel + " stallSeconds=" + stallSeconds + " maxKicks=" + maxKicks
-                + " promoteMs=" + promoteMs + " pollMs=" + pollMs + " infoMs=" + infoMs;
+                + " promoteMs=" + promoteMs + " pollMs=" + pollMs + " infoMs=" + infoMs
+                + " netBufferSizeMB=" + netBufferSizeMB;
     }
 }

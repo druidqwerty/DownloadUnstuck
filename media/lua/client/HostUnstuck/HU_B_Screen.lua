@@ -82,6 +82,7 @@ HU.hooks.writeSettings = function()
     w:write("parallel=" .. HU.fmtInt(parallel) .. "\n")
     w:write("stallSeconds=" .. HU.fmtInt(HU.settings.stallSeconds or HU.defaults.stallSeconds) .. "\n")
     w:write("maxKicks=" .. HU.fmtInt(HU.settings.maxKicks or HU.defaults.maxKicks) .. "\n")
+    w:write("netBufferSizeMB=" .. HU.fmtInt(HU.settings.netBufferSizeMB or HU.defaults.netBufferSizeMB) .. "\n")
     w:close()
 end
 

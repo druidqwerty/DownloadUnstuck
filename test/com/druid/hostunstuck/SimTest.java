@@ -367,7 +367,13 @@ public final class SimTest {
         s.set("junk", "1");
         s.set("pollMs", "abc");
         s.set("promoteMs", "10");
-        check(s.maxParallel == 9 && s.stallSeconds == 5 && s.maxKicks == 10 && s.pollMs == 100 && s.promoteMs == 1000, "clamped: " + s);
+        s.set("netBufferSizeMB", "4096");
+        check(s.maxParallel == 9 && s.stallSeconds == 5 && s.maxKicks == 10 && s.pollMs == 100 && s.promoteMs == 1000
+                && s.netBufferSizeMB == 1024, "clamped: " + s);
+        Settings defaults = new Settings();
+        check(defaults.netBufferSizeMB == 64, "network buffer defaults to 64 MiB");
+        defaults.set("netBufferSizeMB", "1");
+        check(defaults.netBufferSizeMB == 2, "network buffer cannot go below the vanilla 2 MiB cap");
 
         System.out.println(failures == 0 ? "ALL OK" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);

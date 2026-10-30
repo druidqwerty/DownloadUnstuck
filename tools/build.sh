@@ -15,12 +15,16 @@ MODVER="${MODVER:-2.0.0}"
 rm -rf build/classes build/sim
 mkdir -p build/classes build/sim
 
-# SHA-256 of the game's class we replace; the client refuses to inject when the installed game has another one
+# SHA-256 of every game class we replace; the client refuses to inject when the installed game differs
 unzip -p "$GAME/projectzomboid.jar" zombie/network/GameServerWorkshopItems.class | sha256sum | cut -d' ' -f1 > build/vanilla.sha256
+unzip -p "$GAME/projectzomboid.jar" zombie/savefile/PlayerDB.class | sha256sum | cut -d' ' -f1 > build/playerdb.sha256
+unzip -p "$GAME/projectzomboid.jar" zombie/savefile/ServerPlayerDB.class | sha256sum | cut -d' ' -f1 > build/serverplayerdb.sha256
 echo "game GameServerWorkshopItems.class sha256: $(cat build/vanilla.sha256)"
+echo "game PlayerDB.class sha256: $(cat build/playerdb.sha256)"
+echo "game ServerPlayerDB.class sha256: $(cat build/serverplayerdb.sha256)"
 
 "$JDK/javac" --release 25 -encoding UTF-8 -Xlint:all,-serial,-processing -cp "$CP" -d build/classes $(find src -name '*.java')
-cp build/vanilla.sha256 build/classes/com/druid/hostunstuck/vanilla.sha256
+cp build/vanilla.sha256 build/playerdb.sha256 build/serverplayerdb.sha256 build/classes/com/druid/hostunstuck/
 printf 'Implementation-Title: HostUnstuck\nImplementation-Version: %s\n' "$MODVER" > build/manifest.txt
 "$JDK/jar" --create --file build/HostUnstuck.jar --manifest build/manifest.txt -C build/classes .
 

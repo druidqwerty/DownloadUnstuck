@@ -11,6 +11,8 @@
     "UI_HU_Opt_JavaInfo": "Java part (optional, needs ZombieBuddy): the server you host runs the mod's own copy of the download loop. It downloads one item at a time like the game (the game's Steam connection allows only one download at once), but reports the downloaded bytes and a heartbeat every second: a slow big download is not mistaken for a stall, and a server frozen inside Steam is restarted after 30 s instead of waiting for the counter. Without ZombieBuddy this setting does nothing.",
     "UI_HU_Opt_Parallel": "Java download loop on the hosted server",
     "UI_HU_Opt_Parallel_tt": "Off: the game's own download loop runs on the server, only the watchdog above works.",
+    "UI_HU_Opt_NetBufferSize": "Player-save network buffer, MB",
+    "UI_HU_Opt_NetBufferSize_tt": "Raises the vanilla 1-2 MB limit for player saves and network character data on the hosted server. Useful with huge modded inventories and player mod data. This does NOT increase Steam download speed. Requires the Java part and ZombieBuddy; applies on the next server launch.",
     "UI_HU_Line_Item": "Item %1 of %2: %3",
     "UI_HU_Line_Size": "%1 MB",
     "UI_HU_Line_Wait": "no progress: %1 / %2 s",

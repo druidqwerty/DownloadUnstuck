@@ -442,11 +442,12 @@ def test_settings_file():
     lua = make_runtime()
     boot(lua)
     text = lua.eval("written.text")
-    check(text == "parallel=1\nstallSeconds=40\nmaxKicks=2\n", "defaults written on Start: " + text.replace("\n", " "))
-    lua.execute("optionsPage.values.parallel.v = false; optionsPage.values.stallSeconds.v = 90; mainMenuFns[1]()")
+    check(text == "parallel=1\nstallSeconds=40\nmaxKicks=2\nnetBufferSizeMB=64\n", "defaults written on Start: " + text.replace("\n", " "))
+    lua.execute("optionsPage.values.parallel.v = false; optionsPage.values.stallSeconds.v = 90; optionsPage.values.netBufferSizeMB.v = 128; mainMenuFns[1]()")
     text = lua.eval("written.text")
-    check(text == "parallel=0\nstallSeconds=90\nmaxKicks=2\n", "options applied and written: " + text.replace("\n", " "))
+    check(text == "parallel=0\nstallSeconds=90\nmaxKicks=2\nnetBufferSizeMB=128\n", "options applied and written: " + text.replace("\n", " "))
     check(lua.eval("HostUnstuck.settings.stallSeconds") == 90 and lua.eval("HostUnstuck.settings.parallel") == False, "settings table updated")
+    check(lua.eval("HostUnstuck.settings.netBufferSizeMB") == 128, "network buffer setting updated")
 
 
 if __name__ == "__main__":
