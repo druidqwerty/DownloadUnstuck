@@ -15,6 +15,9 @@
   `javac` has only the original decompiler warnings. Full in-game host session still required before publication.
 - Build note: local `bash tools/build.sh` lacks unzip and Windows-path JDK; the same documented build steps were run
   natively. The script itself only gained the two extra class hashes, no environment-specific workaround.
+- RELEASED 2026-10-31: source commit 56e09fc pushed; GitHub v2.1.0 public asset verified byte-for-byte;
+  Steam 3829163351 content + EN/RU published (visibility 0, version text checked); Boosty post
+  https://boosty.to/lrgpp/posts/83a88c2e-f80a-43ce-aff5-5655ffa7b02c (anonymous EN/RU/Workshop checks passed).
 
 Goal: PZ B42 client-side mod that fixes the "Host" screen hanging on "Downloaded X of Y" while the co-op
 server downloads Workshop items. 1.0 (Lua): watches the counter, restarts the server (Stop + Start) when it
