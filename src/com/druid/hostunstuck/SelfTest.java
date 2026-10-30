@@ -16,7 +16,9 @@ public final class SelfTest {
         System.out.println("class path: " + System.getProperty("java.class.path"));
         checkShadow("zombie.network.GameServerWorkshopItems");
         checkShadow("zombie.savefile.PlayerDB");
+        checkShadow("zombie.savefile.PlayerDB$PlayerData");
         checkShadow("zombie.savefile.ServerPlayerDB");
+        checkShadow("zombie.savefile.ServerPlayerDB$NetworkCharacterData");
         checkGate(Inject.TARGET, "vanilla.sha256");
         checkGate(Inject.PLAYER_DB_TARGET, "playerdb.sha256");
         checkGate(Inject.SERVER_PLAYER_DB_TARGET, "serverplayerdb.sha256");

@@ -17,6 +17,9 @@ clock = 0
 calls = { abort = 0, launch = 0 }
 function getTimestampMs() return clock end
 function getText(key, ...)  -- "<key> <arg1> <arg2> ...": keys have no placeholders in this harness
+    if key == "UI_ServerStatus_Downloaded_Workshop_Items_Count" then
+        return "WorkshopItemsCount " .. tostring((...))
+    end
     local s = key
     local args = { ... }
     for i = 1, #args do s = s .. " " .. tostring(args[i]) end
@@ -30,6 +33,9 @@ function luautils.split(str, sep)
     for piece in string.gmatch(str .. sep, "(.-)" .. sep) do table.insert(out, piece) end
     return out
 end
+function luautils.stringStarts(str, prefix) return string.sub(str, 1, #prefix) == prefix end
+PROGRESS_BAR_WORKSHOP_WEIGHT = 0.5
+PROGRESS_BAR_STEP = 0.1
 Events = { OnCoopServerMessage = {}, OnMainMenuEnter = {} }
 registered = {}
 function Events.OnCoopServerMessage.Add(fn) table.insert(registered, fn) end
@@ -91,7 +97,7 @@ end
 -- minimal vanilla screen
 CoopOptionsScreen = {}
 local inst = { serverStatus = "", uiStatus = "idle", progress = 0, nextProgress = 0, width = 800, drawn = nil }
-inst.serverProgressBar = { p = 0, setProgress = function(self, p) self.p = p end, getBottom = function() return 100 end }
+inst.serverProgressBar = { p = 0, setProgress = function(self, p) self.p = p end, setVisible = function() end, getBottom = function() return 100 end }
 local function btn() return { enabled = true, setEnable = function(self, b) self.enabled = b end } end
 inst.startButton, inst.abortButton, inst.backButton = btn(), btn(), btn()
 function inst:getIsVisible() return true end
@@ -99,7 +105,25 @@ function inst:drawTextCentre(text) self.drawn = text end
 setmetatable(inst, { __index = CoopOptionsScreen }) -- instances look methods up on the class, as in the game
 CoopOptionsScreen.instance = inst
 function CoopOptionsScreen.onCoopServerMessage(tag, cookie, payload)
-    if tag == "status" then inst.serverStatus = payload end
+    -- The relevant part of vanilla B42.21, including its division by workshopCount.
+    if tag == "status" and CoopOptionsScreen.instance ~= nil then
+        local countPrefix = luautils.split(getText("UI_ServerStatus_Downloaded_Workshop_Items_Count", ""), " ")[1]
+        if luautils.stringStarts(payload, countPrefix) then
+            inst.workshopCount = tonumber(luautils.split(payload, " ")[2])
+        else
+            local progressPrefix = luautils.split(getText("UI_ServerStatus_Downloaded_Workshop_Items_Progress", "", ""), " ")[1]
+            inst.serverStatus = luautils.stringStarts(payload, "UI_ServerStatus") and getText(payload) or payload
+            if luautils.stringStarts(payload, "UI_ServerStatus_Terminated") then
+                inst.serverProgressBar:setVisible(false)
+                inst.serverProgressBar:setProgress(0)
+                inst.nextProgress = 0
+            elseif luautils.stringStarts(payload, progressPrefix) then
+                inst.nextProgress = inst.nextProgress + (PROGRESS_BAR_WORKSHOP_WEIGHT / inst.workshopCount)
+            else
+                inst.nextProgress = inst.nextProgress + PROGRESS_BAR_STEP
+            end
+        end
+    end
     if tag == "process-status" and payload == "terminated" then
         inst.uiStatus = "idle"; inst.startButton:setEnable(true); inst.abortButton:setEnable(false); inst.backButton:setEnable(true)
         inst.serverStatus = "stopped"
@@ -188,6 +212,17 @@ def test_normal_run():
     lua.execute("advance(600000)")
     check(lua.eval("calls.abort") == 0, "no abort during a healthy run (10 min of world loading)")
     check(lua.eval("calls.launch") == 1, "one launch")
+
+
+def test_progress_without_count_message():
+    print("Java loop omitted the count: recover the vanilla divisor from X of Y")
+    lua = make_runtime()
+    boot(lua)
+    lua.execute("I().workshopCount = nil")  # exact 2.1.0 failure: progress arrives without WorkshopItemsCount
+    progress(lua, 1)
+    check(lua.eval("I().workshopCount") == 308, "vanilla workshopCount restored before its message handler")
+    check(lua.eval("I().serverStatus") == "UI_HU_Status_Downloaded 1 308", "status still translated without a Lua error")
+
 
 
 def test_garbled_russian():

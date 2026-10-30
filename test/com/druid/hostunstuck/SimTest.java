@@ -208,8 +208,14 @@ public final class SimTest {
     static final class Recorder implements Downloader.Reporter {
         final List<int[]> progress = new ArrayList<>();
         final List<Long> failed = new ArrayList<>();
+        int count = -1;
         int reinstalls;
         final List<String> infos = new ArrayList<>();
+
+        @Override
+        public void count(int total) {
+            count = total;
+        }
 
         @Override
         public void progress(int done, int total) {
@@ -289,6 +295,7 @@ public final class SimTest {
             last = p[0];
         }
         check(ok && last == r.items.size(), "progress counter 0.." + r.items.size() + " never goes back (" + r.rec.progress.size() + " lines)");
+        check(r.rec.count == r.items.size(), "vanilla item-count status sent before progress (" + r.rec.count + ")");
     }
 
     public static void main(String[] args) {

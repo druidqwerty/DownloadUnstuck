@@ -16,7 +16,7 @@
 -- everything works as in 1.0.
 HostUnstuck = HostUnstuck or {}
 local HU = HostUnstuck
-HU.VERSION = "2.1.0"
+HU.VERSION = "2.1.1"
 
 HU.defaults = { enabled = true, stallSeconds = 40, maxRestarts = 8, launchTimeout = 120, parallel = true, maxParallel = 1, maxKicks = 2, netBufferSizeMB = 64 }
 HU.settings = HU.settings or {}

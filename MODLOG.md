@@ -1,5 +1,23 @@
 # Host Unstuck — MODLOG
 
+## 2.1.1 (2026-10-31): Workshop progress no longer raises one Lua error per item — test release candidate
+- User's full-pack host test: every `Downloaded X of 308` raised `__div not defined for operands` in vanilla
+  `CoopOptionsScreen.lua:654`. The replacement Java loop sent progress but never sent
+  `UI_ServerStatus_Downloaded_Workshop_Items_Count`, leaving vanilla `workshopCount` nil.
+- Server fix: `Downloader.Reporter.count(total)` runs before the initial `0/N` progress; `CoopReporter` sends the
+  vanilla count message. Client defence: `HU_B_Screen.onMessage` also restores `workshopCount` from the `X of Y`
+  payload before calling vanilla, so a missing/raced count cannot spam errors.
+- Regression coverage: Java `Recorder` asserts the count on every simulated run; the Lua harness now reproduces
+  vanilla's actual division and has a missing-count scenario. Final results: SimTest ALL OK, SelfTest OK (all hash
+  gates plus `PlayerDB$PlayerData` and `ServerPlayerDB$NetworkCharacterData`), Lua 16/16.
+- The user's preceding session still ran 2.1.0. Replacing its jar live caused a later `NoClassDefFoundError` when the
+  JVM requested the nested network-character class; both old and new jars contain that class. Do not hot-swap jars.
+  A clean 2.1.1 client + ZombieBuddy start was then launched and confirmed in `console.txt`. Full 2.1.1 hosting was
+  not completed, so all release texts call this a test version and say exactly which checks ran.
+- Installed and hash-verified in both `Zomboid/mods/HostUnstuck` and Workshop staging `Contents/mods/HostUnstuck`;
+  previous copies backed up under `.scratch/backup-before-2.1.1`. Release preparation: README EN/RU, Steam EN/RU
+  (6079/7775 UTF-8 bytes), GitHub notes and `BOOSTY_2.1.1.md`.
+
 ## 2.1.0 (2026-10-31): configurable player-save/network buffer
 - Steam request: an old-B41-style `NetBufferSize` option for heavily modded servers. Verified B41 Workshop 3353695711
   upsizes a save buffer, not bandwidth. B42.21 has a 2 MiB cap in `PlayerDB$PlayerData.set` and a 1 MiB cap in

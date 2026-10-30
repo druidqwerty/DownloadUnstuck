@@ -13,7 +13,7 @@ import java.util.List;
  * tries and status lines follow the game's loop. No game classes here: the loop runs in an offline simulation (test/SimTest.java).
  */
 public final class Downloader {
-    public static final String VERSION = "2.1.0";
+    public static final String VERSION = "2.1.1";
     /** Reinstall attempts per item before the whole step fails, as in the game. */
     public static final int MAX_TRIES = 3;
     /** Pushes (see pushOldest) after which, if they are needed for most downloads, the loop goes one at a time. */
@@ -44,6 +44,8 @@ public final class Downloader {
 
     /** Lines for the host's screen (the game's own status texts plus one structured line of ours). */
     public interface Reporter {
+        /** Total item count, required by the vanilla Host screen before the first progress line. */
+        void count(int total);
         void progress(int done, int total);
         void reinstall(int done, int total);
         /** The game reports a failed item as its install folder; the Lua side takes the id from it. */
@@ -152,6 +154,7 @@ public final class Downloader {
         lastActivity = t0;
         long lastInfo = Long.MIN_VALUE / 2;
         parallel = 1; // the game's Steam wrapper allows one download at a time (see the class comment)
+        rep.count(n);
         rep.progress(0, n);
         while (true) {
             be.runLoop();

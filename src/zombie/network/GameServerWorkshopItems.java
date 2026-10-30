@@ -146,6 +146,13 @@ public class GameServerWorkshopItems {
     /** The game's status lines (translated on the server, as before) plus our structured "hostunstuck" line. */
     private static final class CoopReporter implements Downloader.Reporter {
         @Override
+        public void count(int total) {
+            if (GameServer.coop && CoopSlave.instance != null) {
+                CoopSlave.instance.sendMessage("status", null, Translator.getText("UI_ServerStatus_Downloaded_Workshop_Items_Count", total));
+            }
+        }
+
+        @Override
         public void progress(int done, int total) {
             if (GameServer.coop && CoopSlave.instance != null) {
                 CoopSlave.instance.sendMessage("status", null, Translator.getText("UI_ServerStatus_Downloaded_Workshop_Items_Progress", done, total));

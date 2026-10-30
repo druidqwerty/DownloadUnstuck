@@ -217,6 +217,15 @@ local function onMessage(tag, cookie, payload)
     local kind, a, b
     local ok, err = pcall(function() kind, a, b = HU.onServerMessage(tag, cookie, payload) end)
     if not ok then log("message error: " .. tostring(err)) end
+    -- Vanilla divides by workshopCount on every Downloaded X of Y line. Our Java loop must send the count first;
+    -- recover from its total as well so a missing/raced count message can never spam __div errors.
+    local inst = CoopOptionsScreen.instance
+    if tag == "status" and inst then
+        local payloadKind, _, total = HU.classify(payload)
+        if payloadKind == "progress" and total and total > 0 then
+            inst.workshopCount = total
+        end
+    end
     origMessage(tag, cookie, payload)
     if kind then
         local ok2, err2 = pcall(HU.applyStatus, kind, a, b)
