@@ -1,0 +1,9 @@
+# DownloadUnstuck — Workshop cover
+
+Created 2026-11-07 with built-in image_gen (no CLI/API fallback).
+
+Master: `cover-2026-master.png`. Steam export: `preview.png`, 512×512 PNG under 1 MiB. Canonical poster copies share the export. Old artwork is backed up in workspace-modder/projects/boosty/cover-backups-20261107. Do not run legacy make_art.py over these assets. Artwork-only publication; no code/version or mod content upload.
+
+## Exact generation prompt
+
+Use case: ads-marketing. Create a square premium cinematic illustrated Steam Workshop cover for the Project Zomboid mod "Download Unstuck". This is a utility that recovers stalled Workshop downloads when hosting co-op; do NOT imply faster internet, completed testing, or new in-game hacking mechanics. Use metaphorical survival-themed key art, gritty painterly realism, charcoal teal shadows and warm amber lantern light in a 1990s Kentucky apocalypse, a style family matching A-Life Caravans. Scene: in a battered safehouse communications room a determined survivor with backpack, seen three-quarter from behind, sits at an old beige CRT computer beside a shortwave radio, floppy disks and a lantern. CRT shows only a simple green segmented progress bar moving forward, no readable numbers or words. Through the boarded window an abandoned town at sunset with a few distant zombie silhouettes. Clear cozy-but-tense survival atmosphere, computer and survivor are focal point, not modern server racks or sci-fi. Top third giant weathered off-white condensed title exactly on two lines: "DOWNLOAD" / "UNSTUCK". Bottom small exact "CO-OP DOWNLOAD RECOVERY" and small outlined "B42" badge. Clear large title readable in thumbnail. No extra lettering, no TEST VERSION badge, no version number, no speed claims, no logos, no UI screenshot, no external frame.
