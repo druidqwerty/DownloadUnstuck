@@ -19,7 +19,7 @@ Download Unstuck does that for you:
 
 Client-side. Enable it in the **main-menu** mod list (Mods) and restart the game once; the server's mod list and the other players are not involved. With ZombieBuddy, it asks once whether to load the new jar; answer Yes. Settings: Options > Mods > Download Unstuck (auto-restart on/off, seconds without progress, maximum restarts, Workshop-step timeout, Java download loop on/off, player-save network buffer size).
 
-<p align="center"><a href="https://boosty.to/lrgpp"><img src="docs/banner.png" alt="LrgPP mods on Boosty" width="640"></a></p>
+<p align="center"><a href="https://boosty.to/lrgpp"><img src="https://raw.githubusercontent.com/druidqwerty/DownloadUnstuck/963d72e777bd155aca1604fe2a4d48a023ce237f/docs/banner.png" alt="LrgPP mods on Boosty" width="640"></a></p>
 
 Free and open source. The code is written by an AI; the direction, the testing and the time are mine. If the mod made your game better: [support on Boosty](https://boosty.to/lrgpp).
 
