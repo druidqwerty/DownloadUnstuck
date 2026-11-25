@@ -16,7 +16,7 @@
 -- everything works as in 1.0.
 HostUnstuck = HostUnstuck or {}
 local HU = HostUnstuck
-HU.VERSION = "2.1.1"
+HU.VERSION = "2.1.2"
 
 HU.defaults = { enabled = true, stallSeconds = 40, maxRestarts = 8, launchTimeout = 120, parallel = true, maxParallel = 1, maxKicks = 2, netBufferSizeMB = 64 }
 HU.settings = HU.settings or {}
@@ -361,7 +361,9 @@ function HU.onStart(auto, serverName)
             pcall(HU.hooks.queryDetails, s.items)
         end
     end
-    if HU.hooks.writeSettings then
+    local skipWrite = HU._settingsWritten
+    HU._settingsWritten = false
+    if not skipWrite and HU.hooks.writeSettings then
         local ok, err = pcall(HU.hooks.writeSettings)
         if not ok then log("could not write the server settings file: " .. tostring(err)) end
     end

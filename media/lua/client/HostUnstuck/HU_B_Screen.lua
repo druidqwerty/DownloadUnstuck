@@ -41,6 +41,7 @@ end
 HU.hooks.loadItems = function(serverName)
     local ids = {}
     local mgr = getServerSettingsManager()
+    if not mgr then return ids end
     for i = 1, mgr:getSettingsCount() do
         local settings = mgr:getSettingsByIndex(i - 1)
         if settings:getName() == serverName then
@@ -243,12 +244,18 @@ end
 
 function CoopOptionsScreen:onStartButtonDown(button, x, y)
     local auto = HU.s.autoStart
-    -- the settings file must exist before the server process starts (it reads it during the Workshop step)
-    if not auto and HU.hooks.writeSettings then pcall(HU.hooks.writeSettings) end
+    -- write the settings file before the server process starts (including auto-relaunches, to avoid racing the child JVM)
+    HU._settingsWritten = false
+    if HU.hooks.writeSettings then
+        local ok, err = pcall(HU.hooks.writeSettings)
+        if ok then HU._settingsWritten = true else log("could not write the server settings file: " .. tostring(err)) end
+    end
     origStart(self, button, x, y)
     if self.uiStatus == "launching" and getSteamModeActive() then
         local ok, err = pcall(HU.onStart, auto, CoopConnection.servername)
         if not ok then log("start error: " .. tostring(err)) end
+    else
+        HU._settingsWritten = false
     end
 end
 

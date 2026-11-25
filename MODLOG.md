@@ -1,5 +1,16 @@
 # Host Unstuck — MODLOG
 
+## 2.1.2 (2026-11-25, built locally): Build 42.22.2 signed-JAR `-javaagent` architecture + Lua race fixes
+- **Critical Build 42.22.2 compatibility fix (`projectzomboid.jar` JAR signing + `ServerPlayerDB.class` hash change):**
+  - Build 42.22.2 signed `projectzomboid.jar` (`META-INF/PROJECTZ.SF` / `PROJECTZ.EC`), causing any unsigned `zombie.*` class prepended to `-Djava.class.path` to throw `java.lang.SecurityException` (package signer mismatch) when paired with signed vanilla classes (`GameServer`, `ClientPlayerDB`), while `ServerPlayerDB.class` also changed SHA-256 (`aeb328c4...` -> `8f77b585...`), tripping `Inject.init()`'s hash gate.
+  - Upgraded to `-javaagent:<HostUnstuck.jar>` + `ServerAgent` (`ClassFileTransformer`): moved `CoopReporter` out of `zombie.network` into `com.druid.hostunstuck.server.CoopReporter`, relocated all 8 shadow `.class` files into resource blobs under `com/druid/hostunstuck/shadows/` (zero root `zombie/*` classes in JAR), and added `Premain-Class: com.druid.hostunstuck.ServerAgent` so the 8 classes are transformed in-place inside `projectzomboid.jar`'s signed `ProtectionDomain` (preserving `signers=(1, 1)` on 42.22.2 while keeping 42.21 player-save compatibility).
+  - Updated `Patches` / `Inject` to intercept `CoopMaster.launchServer(String, String, int, boolean)` (covering both `launchServer` and `softreset`), gated by 6 SHA-256 checks (`GameServerWorkshopItems`, `PlayerDB`, `PlayerDB$PlayerData`, `ServerPlayerDB`, `ServerPlayerDB$NetworkCharacterData`, `CoopMaster`) and upfront `MethodHandle`/`VarHandle` validation; falls through cleanly to vanilla when disabled or on hash mismatch.
+- **Lua bugs & documented `MODLOG.md` cleanups:**
+  - `HU_B_Screen.lua` / `HU_A_Core.lua`: fixed `HostUnstuck_server.ini` write race on auto-relaunch (`writeSettings()` now runs strictly before `CoopServer:launch` on both manual starts and auto-relaunches, incl. crash-guard `parallel=0`); added nil-guard on `getServerSettingsManager()`.
+  - `Translate/{EN,RU}/UI.json`: fixed outdated `UI_HU_Opt_StallSeconds_tt` wording (removed false "requests the stuck item again" claim).
+  - `mod.info` / `tools/build.sh`: bumped `modversion=2.1.2`, `versionMin=42.21`, added `poster.png` (512×512) and `icon.png` (128×128).
+- **Verification:** `HostUnstuck.jar` SHA-256 `1CE09746AB6F78A55FA430BDF60DD35A2AA4CD55754810976FD445657F640420`; `jdeps --multi-release 25` exit 0; `SimTest` ALL OK; `SelfTest` (`-javaagent:HostUnstuck.jar` against signed 42.22.2 `projectzomboid.jar`) `SELFTEST OK` (`signers=(1, 1)`, 0 `SecurityException`, 6/6 SHA-256 gates, `67108864` B buffer); `ZombieBuddyTest` (`ZombieBuddy.jar` v2.3.4) `ZOMBIEBUDDY TEST PASSED`; `test/sim_test.py` `18/18` PASS.
+
 ## 2.1.1 (2026-10-31): Workshop progress no longer raises one Lua error per item — test release candidate
 - User's full-pack host test: every `Downloaded X of 308` raised `__div not defined for operands` in vanilla
   `CoopOptionsScreen.lua:654`. The replacement Java loop sent progress but never sent

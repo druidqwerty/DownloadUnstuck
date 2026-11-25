@@ -3,11 +3,11 @@ package zombie.network;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import com.druid.hostunstuck.server.CoopReporter;
 import com.druid.hostunstuck.server.Downloader;
 import com.druid.hostunstuck.server.Settings;
 import com.druid.hostunstuck.server.SteamBackend;
 import zombie.ZomboidFileSystem;
-import zombie.core.Translator;
 import zombie.core.znet.ISteamWorkshopCallback;
 import zombie.core.znet.SteamUGCDetails;
 import zombie.core.znet.SteamUtils;
@@ -17,7 +17,7 @@ import zombie.debug.DebugType;
 import zombie.debug.LogSeverity;
 
 /**
- * Host Unstuck replacement for the game's GameServerWorkshopItems (42.21). The server process loads this copy instead
+ * Host Unstuck replacement for the game's GameServerWorkshopItems (42.21 / 42.22.2). The server process loads this copy instead
  * of the game's one when the host's client puts HostUnstuck.jar first on the server's class path (see
  * com.druid.hostunstuck.Inject). Same public API: Install(ArrayList) and the GameServer.workshopInstallFolders /
  * workshopTimeStamps arrays it fills. The item query and the tail are the game's code; the download loop is
@@ -141,42 +141,6 @@ public class GameServerWorkshopItems {
             }
         }
         return true;
-    }
-
-    /** The game's status lines (translated on the server, as before) plus our structured "hostunstuck" line. */
-    private static final class CoopReporter implements Downloader.Reporter {
-        @Override
-        public void count(int total) {
-            if (GameServer.coop && CoopSlave.instance != null) {
-                CoopSlave.instance.sendMessage("status", null, Translator.getText("UI_ServerStatus_Downloaded_Workshop_Items_Count", total));
-            }
-        }
-
-        @Override
-        public void progress(int done, int total) {
-            if (GameServer.coop && CoopSlave.instance != null) {
-                CoopSlave.instance.sendMessage("status", null, Translator.getText("UI_ServerStatus_Downloaded_Workshop_Items_Progress", done, total));
-            }
-        }
-
-        @Override
-        public void reinstall(int done, int total) {
-            if (GameServer.coop && CoopSlave.instance != null) {
-                CoopSlave.instance.sendMessage("status", null, Translator.getText("UI_ServerStatus_Downloaded_Workshop_Reinstall_Progress", done, total));
-            }
-        }
-
-        @Override
-        public void failed(long id, String folder) {
-            CoopSlave.status(folder != null ? folder : "workshop/content/108600/" + id);
-        }
-
-        @Override
-        public void info(String payload) {
-            if (GameServer.coop && CoopSlave.instance != null) {
-                CoopSlave.instance.sendMessage("hostunstuck", null, payload);
-            }
-        }
     }
 
     private static final class ItemQuery implements ISteamWorkshopCallback {

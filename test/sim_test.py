@@ -14,7 +14,7 @@ LUA_DIR = os.path.join(ROOT, "media", "lua", "client", "HostUnstuck")
 
 STUBS = r"""
 clock = 0
-calls = { abort = 0, launch = 0 }
+calls = { abort = 0, launch = 0, write = 0, writesDuringLaunch = {} }
 function getTimestampMs() return clock end
 function getText(key, ...)  -- "<key> <arg1> <arg2> ...": keys have no placeholders in this harness
     if key == "UI_ServerStatus_Downloaded_Workshop_Items_Count" then
@@ -45,7 +45,10 @@ end
 function Events.OnMainMenuEnter.Add(fn) end
 CoopServer = {}
 function CoopServer:abort() calls.abort = calls.abort + 1 end
-function CoopServer:launch() calls.launch = calls.launch + 1 end
+function CoopServer:launch()
+    calls.launch = calls.launch + 1
+    calls.writesDuringLaunch[calls.launch] = calls.write
+end
 CoopConnection = { servername = "MPMAIN" }
 serverItems = {}
 function getServerSettingsManager()
@@ -69,11 +72,11 @@ written = nil
 function getFileWriter(name, create, append)
     local w = { name = name, text = "" }
     w.write = function(self, s) self.text = self.text .. s end
-    w.close = function(self) written = self end
+    w.close = function(self) written = self; calls.write = calls.write + 1 end
     return w
 end
 javaCalls = { enable = 0, last = nil }
-function HostUnstuck_java() return "ready 2.0.0" end
+function HostUnstuck_java() return "ready 2.1.2" end
 function HostUnstuck_javaActive() return true end
 function HostUnstuck_javaEnable(on) javaCalls.enable = javaCalls.enable + 1; javaCalls.last = on; return true end
 mainMenuFns = {}
@@ -483,6 +486,35 @@ def test_settings_file():
     check(text == "parallel=0\nstallSeconds=90\nmaxKicks=2\nnetBufferSizeMB=128\n", "options applied and written: " + text.replace("\n", " "))
     check(lua.eval("HostUnstuck.settings.stallSeconds") == 90 and lua.eval("HostUnstuck.settings.parallel") == False, "settings table updated")
     check(lua.eval("HostUnstuck.settings.netBufferSizeMB") == 128, "network buffer setting updated")
+
+
+def test_settings_written_once_before_launch_and_relaunch():
+    print("settings file written once strictly before CoopServer:launch on both manual start and auto-relaunch")
+    lua = make_runtime()
+    boot(lua)
+    check(lua.eval("calls.write") == 1, "written exactly once on manual Start (got %d)" % lua.eval("calls.write"))
+    check(lua.eval("calls.writesDuringLaunch[1]") == 1, "written BEFORE CoopServer:launch on manual Start")
+    progress(lua, 5)
+    java_info(lua, 5, 308, 1, 1000, "3000000005:0/0")
+    lua.execute("terminated(); advance(3000)")
+    check(lua.eval("calls.launch") == 2, "relaunched after death 1")
+    check(lua.eval("calls.write") == 2, "written exactly once on auto-relaunch (got %d)" % lua.eval("calls.write"))
+    check(lua.eval("calls.writesDuringLaunch[2]") == 2, "written BEFORE CoopServer:launch on auto-relaunch")
+    lua.execute("status('WorkshopItemsCount 308')")
+    progress(lua, 5)
+    java_info(lua, 5, 308, 1, 1000, "3000000005:0/0")
+    lua.execute("terminated(); advance(3000)")
+    check(lua.eval("calls.launch") == 3, "relaunched after death 2 (crash guard)")
+    check(lua.eval("calls.write") == 3 and lua.eval("calls.writesDuringLaunch[3]") == 3, "parallel=0 written BEFORE CoopServer:launch on crash-guard relaunch")
+    check("parallel=0" in lua.eval("written.text"), "ini already has parallel=0 before launch 3")
+
+
+def test_nil_settings_manager_safe():
+    print("nil getServerSettingsManager() does not crash loadItems")
+    lua = make_runtime()
+    lua.execute("local orig = getServerSettingsManager; getServerSettingsManager = function() return nil end")
+    lua.execute("local ids = HostUnstuck.hooks.loadItems('MPMAIN'); check_count = #ids")
+    check(lua.eval("check_count") == 0, "loadItems returns empty list when manager is nil")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
     "UI_HU_Opt_Enabled": "Restart the server automatically when the download stalls",
     "UI_HU_Opt_Enabled_tt": "Off: only the readable status, item name and progress bar; nothing is restarted.",
     "UI_HU_Opt_StallSeconds": "Seconds without progress before a restart",
-    "UI_HU_Opt_StallSeconds_tt": "Counted from the last change of the \"Downloaded X of Y\" counter; big items get extra time from their size. With the Java part it is counted from the last downloaded byte: after this time the server requests the stuck item again, and if that does not help within 20 s the server is restarted; a server that stops reporting for 30 s (frozen inside Steam) is restarted at once. Every restart on the same item doubles the wait, so a slow but working download is not interrupted forever.",
+    "UI_HU_Opt_StallSeconds_tt": "Counted from the last change of the \"Downloaded X of Y\" counter; big items get extra time from their size. With the Java part it is counted from the last downloaded byte (plus 20 s grace before restarting the server); a server that stops reporting for 30 s (frozen inside Steam) is restarted at once. Every restart on the same item doubles the wait, so a slow but working download is not interrupted forever.",
     "UI_HU_Opt_MaxRestarts": "Maximum automatic restarts per launch",
     "UI_HU_Opt_MaxRestarts_tt": "After that many restarts the watchdog gives up and names the item it was stuck on. Pressing Start yourself resets the counter.",
     "UI_HU_Opt_LaunchTimeout": "Seconds to wait for the Workshop step",
